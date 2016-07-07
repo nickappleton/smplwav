@@ -642,7 +642,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	sort_and_reassign_ids(&wav);
+	smplwav_sort_markers(&wav);
 
 	if (err == 0 && (opts.flags & FLAG_INPUT_METADATA)) {
 		char c;
@@ -665,7 +665,7 @@ int main(int argc, char *argv[])
 		err = handle_metastring(&wav, opts.set_items[i]);
 	}
 
-	sort_and_reassign_ids(&wav);
+	smplwav_sort_markers(&wav);
 
 	if (err == 0 && (opts.flags & FLAG_OUTPUT_METADATA))
 		dump_metadata(&wav);

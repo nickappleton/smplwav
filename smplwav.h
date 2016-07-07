@@ -147,4 +147,6 @@ static COP_ATTR_UNUSED uint_fast16_t smplwav_format_container_size(int format)
 	}
 }
 
+void smplwav_sort_markers(struct smplwav *wav);
+
 #endif /* SMPLWAV_H */

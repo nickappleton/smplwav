@@ -52,26 +52,6 @@ static struct smplwav_marker *get_marker(struct smplwav *wav, uint_fast32_t id)
 	return marker;
 }
 
-void sort_and_reassign_ids(struct smplwav *wav)
-{
-	unsigned i;
-	for (i = 1; i < wav->nb_marker; i++) {
-		unsigned j;
-		for (j = i; j < wav->nb_marker; j++) {
-			int i_loop = wav->markers[i-1].has_length && wav->markers[i-1].length > 0;
-			int j_loop = wav->markers[j].has_length && wav->markers[j].length > 0;
-			uint_fast64_t i_key = (((uint_fast64_t)wav->markers[i-1].position) << 32) | (wav->markers[i-1].length ^ 0xFFFFFFFF);
-			uint_fast64_t j_key = (((uint_fast64_t)wav->markers[j].position) << 32) | (wav->markers[j].length ^ 0xFFFFFFFF);
-			if ((j_loop && !i_loop) || (j_loop == i_loop && j_key < i_key)) {
-				struct smplwav_marker m = wav->markers[i-1];
-				wav->markers[i-1] = wav->markers[j];
-				wav->markers[j] = m;
-			}
-		}
-		wav->markers[i-1].id = i;
-	}
-}
-
 static
 unsigned
 load_adtl
