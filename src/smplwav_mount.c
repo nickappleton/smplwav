@@ -274,12 +274,12 @@ check_and_finalise_markers
 		/* If the caller has not specified a flag for what do do in this
 		 * situation, print some information and fail. Otherwise, delete
 		 * the markers belonging to the group we do not care about. */
-		if (flags & (FLAG_PREFER_CUE_LOOPS | FLAG_PREFER_SMPL_LOOPS)) {
+		if (flags & (SMPLWAV_MOUNT_PREFER_CUE_LOOPS | SMPLWAV_MOUNT_PREFER_SMPL_LOOPS)) {
 			for (i = 0, dest_idx = 0; i < wav->nb_marker; i++) {
 				int is_loop = wav->markers[i].has_length && wav->markers[i].length > 0;
-				if (is_loop && wav->markers[i].in_smpl && !wav->markers[i].in_cue && (flags & FLAG_PREFER_CUE_LOOPS))
+				if (is_loop && wav->markers[i].in_smpl && !wav->markers[i].in_cue && (flags & SMPLWAV_MOUNT_PREFER_CUE_LOOPS))
 					continue;
-				if (is_loop && !wav->markers[i].in_smpl && wav->markers[i].in_cue && (flags & FLAG_PREFER_SMPL_LOOPS))
+				if (is_loop && !wav->markers[i].in_smpl && wav->markers[i].in_cue && (flags & SMPLWAV_MOUNT_PREFER_SMPL_LOOPS))
 					continue;
 				if (i != dest_idx)
 					wav->markers[dest_idx] = wav->markers[i];
@@ -486,8 +486,8 @@ unsigned smplwav_mount(struct smplwav *wav, unsigned char *buf, size_t bufsz, un
 		 * all the chunks which are "known" we do not support duplicates of,
 		 * so figure out if that's happened here also. */ 
 		if  (   required_chunk
-		    ||  (known_ptr != NULL && !(flags & FLAG_RESET))
-		    ||  (known_ptr == NULL && (flags & FLAG_PRESERVE_UNKNOWN))
+		    ||  (known_ptr != NULL && !(flags & SMPLWAV_MOUNT_RESET))
+		    ||  (known_ptr == NULL && (flags & SMPLWAV_MOUNT_PRESERVE_UNKNOWN))
 		    ) {
 
 			if (known_ptr != NULL) {

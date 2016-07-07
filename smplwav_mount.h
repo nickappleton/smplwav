@@ -23,10 +23,10 @@
 
 #include "smplwav.h"
 
-#define FLAG_RESET                (1)
-#define FLAG_PRESERVE_UNKNOWN     (2)
-#define FLAG_PREFER_SMPL_LOOPS    (4)
-#define FLAG_PREFER_CUE_LOOPS     (8)
+#define SMPLWAV_MOUNT_RESET                (1u)
+#define SMPLWAV_MOUNT_PRESERVE_UNKNOWN     (2u)
+#define SMPLWAV_MOUNT_PREFER_SMPL_LOOPS    (4u)
+#define SMPLWAV_MOUNT_PREFER_CUE_LOOPS     (8u)
 
 /* The data buffer supplied could not be identified as being waveform audio.
  * The load is aborted and wav is uninitialised. */
@@ -101,8 +101,8 @@
  *     This loop is in the sampler chunk but not in the cue chunk.
  *   in_cue && !in_smpl && has_length && (length > 0):
  *     This loop is in the cue chunk but not in the smpl chunk.
- * All other markers should be ignored. The FLAG_PREFER options will permit
- * the load to continue selecting which items to preserve. */
+ * All other markers should be ignored. The SMPLWAV_MOUNT_PREFER options will
+ * permit the load to continue selecting which items to preserve. */
 #define WSR_ERROR_SMPL_CUE_LOOP_CONFLICTS (15u)
 
 /* This warning happens when the RIFF chunk was shortened because the supplied

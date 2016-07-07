@@ -27,16 +27,17 @@
 
 #define MAX_SET_ITEMS             (32)
 
-#define FLAG_STRIP_EVENT_METADATA (16)
-#define FLAG_WRITE_CUE_LOOPS      (32)
-#define FLAG_OUTPUT_METADATA      (64)
-#define FLAG_INPUT_METADATA       (128)
+#define FLAG_STRIP_EVENT_METADATA (1)
+#define FLAG_WRITE_CUE_LOOPS      (2)
+#define FLAG_OUTPUT_METADATA      (4)
+#define FLAG_INPUT_METADATA       (8)
 
 struct wavauth_options {
 	const char  *input_filename;
 	const char  *output_filename;
 
 	unsigned     flags;
+	unsigned     smplwav_flags;
 
 	unsigned     nb_set_items;
 	char        *set_items[MAX_SET_ITEMS];
@@ -49,6 +50,7 @@ static int handle_options(struct wavauth_options *opts, char **argv, unsigned ar
 	opts->input_filename  = NULL;
 	opts->output_filename = NULL;
 	opts->flags           = 0;
+	opts->smplwav_flags   = 0;
 	opts->nb_set_items    = 0;
 
 	while (argc) {
@@ -56,19 +58,19 @@ static int handle_options(struct wavauth_options *opts, char **argv, unsigned ar
 		if (!strcmp(*argv, "--reset")) {
 			argv++;
 			argc--;
-			opts->flags |= FLAG_RESET;
+			opts->smplwav_flags |= SMPLWAV_MOUNT_RESET;
 		} else if (!strcmp(*argv, "--preserve-unknown-chunks")) {
 			argv++;
 			argc--;
-			opts->flags |= FLAG_PRESERVE_UNKNOWN;
+			opts->smplwav_flags |= SMPLWAV_MOUNT_PRESERVE_UNKNOWN;
 		} else if (!strcmp(*argv, "--prefer-smpl-loops")) {
 			argv++;
 			argc--;
-			opts->flags |= FLAG_PREFER_SMPL_LOOPS;
+			opts->smplwav_flags |= SMPLWAV_MOUNT_PREFER_SMPL_LOOPS;
 		} else if (!strcmp(*argv, "--prefer-cue-loops")) {
 			argv++;
 			argc--;
-			opts->flags |= FLAG_PREFER_CUE_LOOPS;
+			opts->smplwav_flags |= SMPLWAV_MOUNT_PREFER_CUE_LOOPS;
 		} else if (!strcmp(*argv, "--strip-event-metadata")) {
 			argv++;
 			argc--;
@@ -123,7 +125,7 @@ static int handle_options(struct wavauth_options *opts, char **argv, unsigned ar
 		}
 	}
 
-	if ((opts->flags & (FLAG_PREFER_CUE_LOOPS | FLAG_PREFER_SMPL_LOOPS)) == (FLAG_PREFER_CUE_LOOPS | FLAG_PREFER_SMPL_LOOPS)) {
+	if ((opts->smplwav_flags & (SMPLWAV_MOUNT_PREFER_CUE_LOOPS | SMPLWAV_MOUNT_PREFER_SMPL_LOOPS)) == (SMPLWAV_MOUNT_PREFER_CUE_LOOPS | SMPLWAV_MOUNT_PREFER_SMPL_LOOPS)) {
 		fprintf(stderr, "--prefer-smpl-loops and --prefer-cue-loops are exclusive options\n");
 		return -1;
 	}
@@ -613,7 +615,7 @@ int main(int argc, char *argv[])
 	if ((err = read_entire_file(opts.input_filename, &sz, &buf)) != 0)
 		return err;
 
-	if (WSR_ERROR_CODE(uerr = smplwav_mount(&wav, buf, sz, opts.flags))) {
+	if (WSR_ERROR_CODE(uerr = smplwav_mount(&wav, buf, sz, opts.smplwav_flags))) {
 		if (WSR_ERROR_CODE(uerr) == WSR_ERROR_SMPL_CUE_LOOP_CONFLICTS) {
 			fprintf(stderr, "%s has sampler loops that conflict with loops in the cue chunk. you must specify --prefer-smpl-loops or --prefer-cue-loops to load it. here are the details:\n", opts.input_filename);
 			fprintf(stderr, "common loops (position/duration):\n");
