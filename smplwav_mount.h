@@ -23,70 +23,88 @@
 
 #include "smplwav.h"
 
+/* Flags
+ * -------------------------------------------------------------------------*/
+
+/* This flag will remove all known but unnecessary metadata from the waveform
+ * (cue, smpl, info and adtl chunks). */
 #define SMPLWAV_MOUNT_RESET                (1u)
+
+/* The default behavior is to strip out unknown metadata (i.e. on load,
+ * nb_unsupported will always be zero). If this flag is set, unknown chunks
+ * will populate the unsupported array in the smplwav structure. */
 #define SMPLWAV_MOUNT_PRESERVE_UNKNOWN     (2u)
+
+/* If there are loop conflicts, use the sampler loops over the cue loops (
+ * beware!). */
 #define SMPLWAV_MOUNT_PREFER_SMPL_LOOPS    (4u)
+
+/* If there are loop conflicts, use the cue loops over the sampler loops (this
+ * is less risky than the above). */
 #define SMPLWAV_MOUNT_PREFER_CUE_LOOPS     (8u)
+
+/* Error Codes
+ * -------------------------------------------------------------------------*/
 
 /* The data buffer supplied could not be identified as being waveform audio.
  * The load is aborted and wav is uninitialised. */
-#define WSR_ERROR_NOT_A_WAVE              (1u)
+#define SMPLWAV_ERROR_NOT_A_WAVE              (1u)
 
 /* The format chunk in the wave was corrupt. The load is aborted and wav is
  * uninitialised. */
-#define WSR_ERROR_FMT_INVALID             (2u)
+#define SMPLWAV_ERROR_FMT_INVALID             (2u)
 
 /* The format chunk is valid, but does not contain waveform audio which we can
  * use. The load is aborted and wav is uninitialised. */
-#define WSR_ERROR_FMT_UNSUPPORTED         (3u)
+#define SMPLWAV_ERROR_FMT_UNSUPPORTED         (3u)
 
 /* The data chunk is corrupt. This happens if there is not a whole number of
  * sample frames in the data chunk. The load is aborted and wav is
  * uninitialised. */
-#define WSR_ERROR_DATA_INVALID            (4u)
+#define SMPLWAV_ERROR_DATA_INVALID            (4u)
 
 /* The waveform contained metadata in the INFO chunk which was not defined in
  * the RIFF spec. The load is aborted and wav is uninitialised. */
-#define WSR_ERROR_INFO_UNSUPPORTED        (5u)
+#define SMPLWAV_ERROR_INFO_UNSUPPORTED        (5u)
 
 /* The adtl metadata chunk was invalid. This can happen if the adtl chunk has
  * been truncated or if a labelled text chunk is encountered which contained
  * unsupported data. The load is aborted and wav is uninitialised. */
-#define WSR_ERROR_ADTL_INVALID            (6u)
+#define SMPLWAV_ERROR_ADTL_INVALID            (6u)
 
 /* The adtl metadata chunk contained duplicate note or labl entries for a
  * given cue chunk ID. The load is aborted and wav is uninitialised. */
-#define WSR_ERROR_ADTL_DUPLICATES         (7u)
+#define SMPLWAV_ERROR_ADTL_DUPLICATES         (7u)
 
 /* The cue chunk is invalid. This can happen if the cue chunk has been
  * truncated. The load is aborted and wav is uninitialised. */
-#define WSR_ERROR_CUE_INVALID             (8u)
+#define SMPLWAV_ERROR_CUE_INVALID             (8u)
 
 /* The cue chunk contained cue points which shared the same identifier. The
  * load is aborted and wav is uninitialised. */
-#define WSR_ERROR_CUE_DUPLICATE_IDS       (9u)
+#define SMPLWAV_ERROR_CUE_DUPLICATE_IDS       (9u)
 
 /* The smpl chunk is invalid. This can happen if the smpl chunk has been
  * truncated. The load is aborted and wav is uninitialised. */
-#define WSR_ERROR_SMPL_INVALID            (10u)
+#define SMPLWAV_ERROR_SMPL_INVALID            (10u)
 
 /* The wave file contained too many unsupported chunks (more than
  * WAV_SAMPLE_MAX_UNSUPPORTED_CHUNKS) to store in wav. The load is aborted and
  * wav is uninitialised. */
-#define WSR_ERROR_TOO_MANY_CHUNKS         (11u)
+#define SMPLWAV_ERROR_TOO_MANY_CHUNKS         (11u)
 
 /* The wave file contained unexpected duplicate chunks (as an example, more
  * than one format or data chunk). The load is aborted and wav is
  * uninitialised. */
-#define WSR_ERROR_DUPLICATE_CHUNKS        (12u)
+#define SMPLWAV_ERROR_DUPLICATE_CHUNKS        (12u)
 
 /* The wave file contained more than WAV_SAMPLE_MAX_MARKERS positional
  * metadata items. The load is aborted and wav is uninitialised. */
-#define WSR_ERROR_TOO_MANY_MARKERS        (13u)
+#define SMPLWAV_ERROR_TOO_MANY_MARKERS        (13u)
 
 /* The wave file contained markers which contained samples outside the range
  * of the file. The load is aborted and wav is uninitialised. */
-#define WSR_ERROR_MARKER_RANGE            (14u)
+#define SMPLWAV_ERROR_MARKER_RANGE            (14u)
 
 /* If the error code is this, there were loops that were in conflict within
  * the cue and smpl chunks. This usually indicates that audio editing software
@@ -103,23 +121,26 @@
  *     This loop is in the cue chunk but not in the smpl chunk.
  * All other markers should be ignored. The SMPLWAV_MOUNT_PREFER options will
  * permit the load to continue selecting which items to preserve. */
-#define WSR_ERROR_SMPL_CUE_LOOP_CONFLICTS (15u)
+#define SMPLWAV_ERROR_SMPL_CUE_LOOP_CONFLICTS (15u)
+
+/* Warning Codes
+ * -------------------------------------------------------------------------*/
 
 /* This warning happens when the RIFF chunk was shortened because the supplied
  * memory was not long enough to contain it. This can happen when a broken
  * wave writing implementation is used to create the audio data. */
-#define WSR_WARNING_FILE_TRUNCATION           (0x100u)
+#define SMPLWAV_WARNING_FILE_TRUNCATION           (0x100u)
 
 /* The adtl chunk contained strings which were not null-terminated. The
  * strings will be ignored. */
-#define WSR_WARNING_ADTL_UNTERMINATED_STRINGS (0x200u)
+#define SMPLWAV_WARNING_ADTL_UNTERMINATED_STRINGS (0x200u)
 
 /* The info chunk contained strings which were not null-terminated. The
  * strings will be ignored. */
-#define WSR_WARNING_INFO_UNTERMINATED_STRINGS (0x400u)
+#define SMPLWAV_WARNING_INFO_UNTERMINATED_STRINGS (0x400u)
 
 /* Use this macro to extract the error code from a return value. */
-#define WSR_ERROR_CODE(x) ((x) & 0xFFu)
+#define SMPLWAV_ERROR_CODE(x) ((x) & 0xFFu)
 
 unsigned smplwav_mount(struct smplwav *wav, unsigned char *buf, size_t bufsz, unsigned flags);
 

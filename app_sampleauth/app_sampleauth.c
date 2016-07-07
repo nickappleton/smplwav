@@ -615,8 +615,8 @@ int main(int argc, char *argv[])
 	if ((err = read_entire_file(opts.input_filename, &sz, &buf)) != 0)
 		return err;
 
-	if (WSR_ERROR_CODE(uerr = smplwav_mount(&wav, buf, sz, opts.smplwav_flags))) {
-		if (WSR_ERROR_CODE(uerr) == WSR_ERROR_SMPL_CUE_LOOP_CONFLICTS) {
+	if (SMPLWAV_ERROR_CODE(uerr = smplwav_mount(&wav, buf, sz, opts.smplwav_flags))) {
+		if (SMPLWAV_ERROR_CODE(uerr) == SMPLWAV_ERROR_SMPL_CUE_LOOP_CONFLICTS) {
 			fprintf(stderr, "%s has sampler loops that conflict with loops in the cue chunk. you must specify --prefer-smpl-loops or --prefer-cue-loops to load it. here are the details:\n", opts.input_filename);
 			fprintf(stderr, "common loops (position/duration):\n");
 			for (i = 0; i < wav.nb_marker; i++)

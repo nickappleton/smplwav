@@ -82,7 +82,7 @@ load_adtl
 		/* Move the adtl pointer to the start of the next chunk.*/
 		cksz = 8 + (uint_fast64_t)meta_size + (meta_size & 1);
 		if (cksz > adtl_len)
-			return warnings | WSR_ERROR_ADTL_INVALID;
+			return warnings | SMPLWAV_ERROR_ADTL_INVALID;
 
 		adtl     += cksz;
 		adtl_len -= cksz;
@@ -95,13 +95,13 @@ load_adtl
 		if  (  !(is_ltxt && meta_size == 20)
 		    && !((is_note || (meta_class == SMPLWAV_RIFF_ID('l', 'a', 'b', 'l'))) && meta_size >= 4)
 		    )
-			return warnings | WSR_ERROR_ADTL_INVALID;
+			return warnings | SMPLWAV_ERROR_ADTL_INVALID;
 
 		/* The a metadata item with the given ID associated with this adtl
 		 * metadata chunk. */
 		marker = get_marker(wav, cop_ld_ule32(meta_base));
 		if (marker == NULL)
-			return warnings | WSR_ERROR_TOO_MANY_MARKERS;
+			return warnings | SMPLWAV_ERROR_TOO_MANY_MARKERS;
 
 		/* Skip over the metadata ID */
 		meta_base += 4;
@@ -109,22 +109,22 @@ load_adtl
 
 		if (is_ltxt) {
 			if (marker->has_length)
-				return WSR_ERROR_ADTL_DUPLICATES;
+				return SMPLWAV_ERROR_ADTL_DUPLICATES;
 			marker->has_length = 1;
 			marker->length     = cop_ld_ule32(meta_base);
 		} else {
 			if (!meta_size || meta_base[meta_size-1] != 0) {
-				warnings |= WSR_WARNING_ADTL_UNTERMINATED_STRINGS;
+				warnings |= SMPLWAV_WARNING_ADTL_UNTERMINATED_STRINGS;
 				continue;
 			}
 
 			if (is_note) {
 				if (marker->desc != NULL)
-					return warnings | WSR_ERROR_ADTL_DUPLICATES;
+					return warnings | SMPLWAV_ERROR_ADTL_DUPLICATES;
 				marker->desc = (char *)meta_base;
 			} else {
 				if (marker->name != NULL)
-					return warnings | WSR_ERROR_ADTL_DUPLICATES;
+					return warnings | SMPLWAV_ERROR_ADTL_DUPLICATES;
 				marker->name = (char *)meta_base;
 			}
 		}
@@ -144,17 +144,17 @@ load_cue
 	uint_fast32_t  ncue;
 
 	if (cue_len < 4 || cue_len < 4 + 24 * (ncue = cop_ld_ule32(cue)))
-		return WSR_ERROR_CUE_INVALID;
+		return SMPLWAV_ERROR_CUE_INVALID;
 
 	cue += 4;
 	while (ncue--) {
 		uint_fast32_t cue_id      = cop_ld_ule32(cue);
 		struct smplwav_marker *marker = get_marker(wav, cue_id);
 		if (marker == NULL)
-			return WSR_ERROR_TOO_MANY_MARKERS;
+			return SMPLWAV_ERROR_TOO_MANY_MARKERS;
 
 		if (marker->in_cue)
-			return WSR_ERROR_CUE_DUPLICATE_IDS;
+			return SMPLWAV_ERROR_CUE_DUPLICATE_IDS;
 
 		marker->position     = cop_ld_ule32(cue + 20);
 		marker->in_cue = 1;
@@ -176,7 +176,7 @@ load_smpl
 	uint_fast32_t i;
 
 	if (smpl_len < 36 || (smpl_len < (36 + (nloop = cop_ld_ule32(smpl + 28)) * 24 + cop_ld_ule32(smpl + 32))))
-		return WSR_ERROR_SMPL_INVALID;
+		return SMPLWAV_ERROR_SMPL_INVALID;
 
 	wav->has_pitch_info = 1;
 	wav->pitch_info = (((uint_fast64_t)cop_ld_ule32(smpl + 12)) << 32) | cop_ld_ule32(smpl + 16);
@@ -191,7 +191,7 @@ load_smpl
 		struct smplwav_marker *marker;
 
 		if (start > end)
-			return WSR_ERROR_SMPL_INVALID;
+			return SMPLWAV_ERROR_SMPL_INVALID;
 
 		length = end - start + 1;
 
@@ -215,7 +215,7 @@ load_smpl
 		if (j < wav->nb_marker) {
 			marker = wav->markers + j;
 		} else if ((marker = get_new_marker(wav)) == NULL) {
-			return WSR_ERROR_TOO_MANY_MARKERS;
+			return SMPLWAV_ERROR_TOO_MANY_MARKERS;
 		}
 
 		marker->position   = start;
@@ -252,11 +252,11 @@ check_and_finalise_markers
 			continue;
 		/* Check position is actually inside the audio region. */
 		if (wav->markers[i].position >= wav->data_frames)
-			return WSR_ERROR_MARKER_RANGE;
+			return SMPLWAV_ERROR_MARKER_RANGE;
 		if (wav->markers[i].has_length && wav->markers[i].length > 0) {
 			/* Check duration does not go outside audio region. */
 			if (wav->markers[i].position + wav->markers[i].length > wav->data_frames)
-				return WSR_ERROR_MARKER_RANGE;
+				return SMPLWAV_ERROR_MARKER_RANGE;
 			if (wav->markers[i].in_smpl && !wav->markers[i].in_cue)
 				nb_smpl_only_loops++;
 			if (!wav->markers[i].in_smpl && wav->markers[i].in_cue)
@@ -287,7 +287,7 @@ check_and_finalise_markers
 			}
 			wav->nb_marker = dest_idx;
 		} else {
-			return WSR_ERROR_SMPL_CUE_LOOP_CONFLICTS;
+			return SMPLWAV_ERROR_SMPL_CUE_LOOP_CONFLICTS;
 		}
 	}
 
@@ -305,7 +305,7 @@ static unsigned load_sample_format(struct smplwav_format *format, unsigned char 
 	uint_fast16_t bits_per_sample;
 
 	if (fmt_sz < 16)
-		return WSR_ERROR_FMT_INVALID;
+		return SMPLWAV_ERROR_FMT_INVALID;
 
 	format_tag              = cop_ld_ule16(fmt_ptr + 0);
 	channels                = cop_ld_ule16(fmt_ptr + 2);
@@ -322,13 +322,13 @@ static unsigned load_sample_format(struct smplwav_format *format, unsigned char 
 			||  ((cbsz = cop_ld_ule16(fmt_ptr + 16)) < 22)
 			||  (fmt_sz < 18 + cbsz)
 			)
-			return WSR_ERROR_FMT_INVALID;
+			return SMPLWAV_ERROR_FMT_INVALID;
 
 		bits_per_sample = cop_ld_ule16(fmt_ptr + 18);
 		format_tag      = cop_ld_ule16(fmt_ptr + 24);
 
 		if (memcmp(fmt_ptr + 26, EXTENSIBLE_GUID_SUFFIX, 14) != 0)
-			return WSR_ERROR_FMT_UNSUPPORTED;
+			return SMPLWAV_ERROR_FMT_UNSUPPORTED;
 	}
 
 	format->bits_per_sample = bits_per_sample;
@@ -343,12 +343,12 @@ static unsigned load_sample_format(struct smplwav_format *format, unsigned char 
 	else if (format_tag == 3 && container_bytes == 4)
 		format->format = SMPLWAV_FORMAT_FLOAT32; 
 	else
-		return WSR_ERROR_FMT_UNSUPPORTED;
+		return SMPLWAV_ERROR_FMT_UNSUPPORTED;
 
 	if  (   (block_align != channels * container_bytes)
 		||  (bits_per_sample > container_bytes * 8)
 		)
-		return WSR_ERROR_FMT_INVALID;
+		return SMPLWAV_ERROR_FMT_INVALID;
 
 	return 0;
 }
@@ -380,7 +380,7 @@ static unsigned load_info(char **infoset, unsigned char *buf, size_t sz)
 		}
 
 		if (cksz == 0 || base[cksz-1] != 0) {
-			warnings |= WSR_WARNING_INFO_UNTERMINATED_STRINGS;
+			warnings |= SMPLWAV_WARNING_INFO_UNTERMINATED_STRINGS;
 			continue;
 		}
 
@@ -392,7 +392,7 @@ static unsigned load_info(char **infoset, unsigned char *buf, size_t sz)
 		}
 
 		if (i == SMPLWAV_NB_INFO_TAGS)
-			return WSR_ERROR_INFO_UNSUPPORTED;
+			return SMPLWAV_ERROR_INFO_UNSUPPORTED;
 	}
 
 	return warnings;
@@ -415,14 +415,14 @@ unsigned smplwav_mount(struct smplwav *wav, unsigned char *buf, size_t bufsz, un
 	    ||  ((riff_sz = cop_ld_ule32(buf + 4)) < 4)
 	    ||  (cop_ld_ule32(buf + 8) != SMPLWAV_RIFF_ID('W', 'A', 'V', 'E'))
 	    )
-		return WSR_ERROR_NOT_A_WAVE;
+		return SMPLWAV_ERROR_NOT_A_WAVE;
 
 	riff_sz -= 4;
 	bufsz   -= 12;
 	buf     += 12;
 
 	if (riff_sz > bufsz) {
-		warnings |= WSR_WARNING_FILE_TRUNCATION;
+		warnings |= SMPLWAV_WARNING_FILE_TRUNCATION;
 		riff_sz = (uint_fast32_t)bufsz;
 	}
 
@@ -494,10 +494,10 @@ unsigned smplwav_mount(struct smplwav *wav, unsigned char *buf, size_t bufsz, un
 				/* There are no chunks which we know how to interpret which
 				 * can occur more than once. */
 				if (known_ptr->data != NULL)
-					return warnings | WSR_ERROR_DUPLICATE_CHUNKS;
+					return warnings | SMPLWAV_ERROR_DUPLICATE_CHUNKS;
 			} else {
 				if (wav->nb_unsupported >= SMPLWAV_MAX_UNSUPPORTED_CHUNKS)
-					return warnings | WSR_ERROR_TOO_MANY_CHUNKS;
+					return warnings | SMPLWAV_ERROR_TOO_MANY_CHUNKS;
 
 				known_ptr = wav->unsupported + wav->nb_unsupported++;
 			}
@@ -512,7 +512,7 @@ unsigned smplwav_mount(struct smplwav *wav, unsigned char *buf, size_t bufsz, un
 		uint_fast16_t block_align;
 
 		/* Load the format chunk into our "simple" format descriptor. */
-		if (WSR_ERROR_CODE(warnings |= load_sample_format(&(wav->format), fmt.data, fmt.size)))
+		if (SMPLWAV_ERROR_CODE(warnings |= load_sample_format(&(wav->format), fmt.data, fmt.size)))
 			return warnings;
 
 		/* Compute the number of frames in the audio. */
@@ -521,33 +521,33 @@ unsigned smplwav_mount(struct smplwav *wav, unsigned char *buf, size_t bufsz, un
 		/* If the data chunk does not contain a whole multiple of frames, it
 		 * is missing audio and we should probably (??) abort the load. */
 		if (data.size % block_align)
-			return warnings | WSR_ERROR_DATA_INVALID;
+			return warnings | SMPLWAV_ERROR_DATA_INVALID;
 
 		wav->data        = data.data;
 		wav->data_frames = data.size / block_align;
 	} else {
 		/* The wave file was missing the format or the data chunk. Totally
 		 * broken. */
-		return warnings | WSR_ERROR_NOT_A_WAVE;
+		return warnings | SMPLWAV_ERROR_NOT_A_WAVE;
 	}
 
 	if (info.data != NULL) {
-		if (WSR_ERROR_CODE(warnings |= load_info(wav->info, info.data, info.size)))
+		if (SMPLWAV_ERROR_CODE(warnings |= load_info(wav->info, info.data, info.size)))
 			return warnings;
 	}
 
 	if (adtl.data != NULL) {
-		if (WSR_ERROR_CODE(warnings |= load_adtl(wav, adtl.data, adtl.size)))
+		if (SMPLWAV_ERROR_CODE(warnings |= load_adtl(wav, adtl.data, adtl.size)))
 			return warnings;
 	}
 
 	if (cue.data != NULL) {
-		if (WSR_ERROR_CODE(warnings |= load_cue(wav, cue.data, cue.size)))
+		if (SMPLWAV_ERROR_CODE(warnings |= load_cue(wav, cue.data, cue.size)))
 			return warnings;
 	}
 
 	if (smpl.data != NULL) {
-		if (WSR_ERROR_CODE(warnings |= load_smpl(wav, smpl.data, smpl.size)))
+		if (SMPLWAV_ERROR_CODE(warnings |= load_smpl(wav, smpl.data, smpl.size)))
 			return warnings;
 	}
 
