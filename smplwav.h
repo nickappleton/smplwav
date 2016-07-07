@@ -70,30 +70,32 @@ struct smplwav_format {
 	|   (((uint_fast32_t)(c4)) << 24) \
 	)
 
+/* See "Multimedia Programming Interface and Data Specifications 1.0" for
+ * information about how these textual fields should look. */
 static COP_ATTR_UNUSED uint_fast32_t SMPLWAV_INFO_TAGS[] =
-{	SMPLWAV_RIFF_ID('I', 'A', 'R', 'L')
-,	SMPLWAV_RIFF_ID('I', 'A', 'R', 'T')
-,	SMPLWAV_RIFF_ID('I', 'C', 'M', 'S')
-,	SMPLWAV_RIFF_ID('I', 'C', 'M', 'T')
-,	SMPLWAV_RIFF_ID('I', 'C', 'O', 'P')
-,	SMPLWAV_RIFF_ID('I', 'C', 'R', 'D')
-,	SMPLWAV_RIFF_ID('I', 'C', 'R', 'P')
-,	SMPLWAV_RIFF_ID('I', 'D', 'I', 'M')
-,	SMPLWAV_RIFF_ID('I', 'D', 'P', 'I')
-,	SMPLWAV_RIFF_ID('I', 'E', 'N', 'G')
-,	SMPLWAV_RIFF_ID('I', 'G', 'N', 'R')
-,	SMPLWAV_RIFF_ID('I', 'K', 'E', 'Y')
-,	SMPLWAV_RIFF_ID('I', 'L', 'G', 'T')
-,	SMPLWAV_RIFF_ID('I', 'M', 'E', 'D')
-,	SMPLWAV_RIFF_ID('I', 'N', 'A', 'M')
-,	SMPLWAV_RIFF_ID('I', 'P', 'L', 'T')
-,	SMPLWAV_RIFF_ID('I', 'P', 'R', 'D')
-,	SMPLWAV_RIFF_ID('I', 'S', 'B', 'J')
-,	SMPLWAV_RIFF_ID('I', 'S', 'F', 'T')
-,	SMPLWAV_RIFF_ID('I', 'S', 'H', 'P')
-,	SMPLWAV_RIFF_ID('I', 'S', 'R', 'C')
-,	SMPLWAV_RIFF_ID('I', 'S', 'R', 'F')
-,	SMPLWAV_RIFF_ID('I', 'T', 'C', 'H')
+{	SMPLWAV_RIFF_ID('I', 'A', 'R', 'L') /* Archival Location */
+,	SMPLWAV_RIFF_ID('I', 'A', 'R', 'T') /* Artist */
+,	SMPLWAV_RIFF_ID('I', 'C', 'M', 'S') /* Commissioned */
+,	SMPLWAV_RIFF_ID('I', 'C', 'M', 'T') /* Comments */
+,	SMPLWAV_RIFF_ID('I', 'C', 'O', 'P') /* Copyright */
+,	SMPLWAV_RIFF_ID('I', 'C', 'R', 'D') /* Creation Date */
+,	SMPLWAV_RIFF_ID('I', 'C', 'R', 'P') /* Cropped */
+,	SMPLWAV_RIFF_ID('I', 'D', 'I', 'M') /* Dimensions */
+,	SMPLWAV_RIFF_ID('I', 'D', 'P', 'I') /* Dots Per Inch */
+,	SMPLWAV_RIFF_ID('I', 'E', 'N', 'G') /* Engineer */
+,	SMPLWAV_RIFF_ID('I', 'G', 'N', 'R') /* Genre */
+,	SMPLWAV_RIFF_ID('I', 'K', 'E', 'Y') /* Keywords */
+,	SMPLWAV_RIFF_ID('I', 'L', 'G', 'T') /* Lightness */
+,	SMPLWAV_RIFF_ID('I', 'M', 'E', 'D') /* Medium */
+,	SMPLWAV_RIFF_ID('I', 'N', 'A', 'M') /* Name */
+,	SMPLWAV_RIFF_ID('I', 'P', 'L', 'T') /* Palette Setting */
+,	SMPLWAV_RIFF_ID('I', 'P', 'R', 'D') /* Product */
+,	SMPLWAV_RIFF_ID('I', 'S', 'B', 'J') /* Subject */
+,	SMPLWAV_RIFF_ID('I', 'S', 'F', 'T') /* Software */
+,	SMPLWAV_RIFF_ID('I', 'S', 'H', 'P') /* Sharpness */
+,	SMPLWAV_RIFF_ID('I', 'S', 'R', 'C') /* Source */
+,	SMPLWAV_RIFF_ID('I', 'S', 'R', 'F') /* Source Form */
+,	SMPLWAV_RIFF_ID('I', 'T', 'C', 'H') /* Technician */
 };
 
 #define SMPLWAV_NB_INFO_TAGS (sizeof(SMPLWAV_INFO_TAGS) / sizeof(SMPLWAV_INFO_TAGS[0]))
@@ -105,7 +107,8 @@ struct smplwav_extra_ck {
 };
 
 struct smplwav {
-	/* String metadata found in the info chunk. */
+	/* String metadata found in the info chunk. The purpose of each element is
+	 * the element with the same index in the SMPLWAV_INFO_TAGS[] array. */
 	char                      *info[SMPLWAV_NB_INFO_TAGS];
 
 	/* If there was a smpl chunk, this will always be non-zero and pitch-info
