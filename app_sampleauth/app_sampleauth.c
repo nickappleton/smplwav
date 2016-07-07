@@ -165,13 +165,13 @@ void printstr(const char *s)
 	}
 }
 
-static void dump_metadata(const struct wav_sample *wav)
+static void dump_metadata(const struct smplwav *wav)
 {
 	unsigned i;
 
-	for (i = 0; i < NB_SUPPORTED_INFO_TAGS; i++) {
+	for (i = 0; i < SMPLWAV_NB_INFO_TAGS; i++) {
 		if (wav->info[i] != NULL) {
-			uint_fast32_t id = SUPPORTED_INFO_TAGS[i];
+			uint_fast32_t id = SMPLWAV_INFO_TAGS[i];
 			printf("info-%c%c%c%c ", id & 0xFF, (id >> 8) & 0xFF, (id >> 16) & 0xFF, (id >> 24) & 0xFF); printstr(wav->info[i]); printf("\n");
 		}
 	}
@@ -195,7 +195,7 @@ static void dump_metadata(const struct wav_sample *wav)
 	}
 }
 
-static int dump_sample(const struct wav_sample *wav, const char *filename, int store_cue_loops)
+static int dump_sample(const struct smplwav *wav, const char *filename, int store_cue_loops)
 {
 	int err = 0;
 	size_t sz;
@@ -371,7 +371,7 @@ static int expect_end_of_args(char **cmd_str)
 	return 0;
 }
 
-static int handle_loop(struct wav_sample *wav, char *cmd_str)
+static int handle_loop(struct smplwav *wav, char *cmd_str)
 {
 	uint_fast64_t start;
 	uint_fast64_t duration;
@@ -390,7 +390,7 @@ static int handle_loop(struct wav_sample *wav, char *cmd_str)
 		return -1;
 	}
 
-	if (wav->nb_marker >= WAV_SAMPLE_MAX_MARKERS) {
+	if (wav->nb_marker >= SMPLWAV_MAX_MARKERS) {
 		fprintf(stderr, "cannot add another loop - too much marker metadata\n");
 		return -1;
 	}
@@ -405,12 +405,12 @@ static int handle_loop(struct wav_sample *wav, char *cmd_str)
 	return 0;
 }
 
-static int handle_cue(struct wav_sample *wav, char *cmd_str)
+static int handle_cue(struct smplwav *wav, char *cmd_str)
 {
 	return 0;
 }
 
-static int handle_smplpitch(struct wav_sample *wav, char *cmd_str)
+static int handle_smplpitch(struct smplwav *wav, char *cmd_str)
 {
 	uint_fast64_t pitch;
 
@@ -435,13 +435,13 @@ static int handle_smplpitch(struct wav_sample *wav, char *cmd_str)
 	return 0;
 }
 
-static int handle_info(struct wav_sample *wav, char *ck, char *cmd_str)
+static int handle_info(struct smplwav *wav, char *ck, char *cmd_str)
 {
 	if (strlen(ck) == 4) {
 		unsigned i;
 		uint_fast32_t id = ((uint_fast32_t)ck[0]) | (((uint_fast32_t)ck[1]) << 8) | (((uint_fast32_t)ck[2]) << 16) | (((uint_fast32_t)ck[3]) << 24);
-		for (i = 0; i < NB_SUPPORTED_INFO_TAGS; i++) {
-			if (id == SUPPORTED_INFO_TAGS[i]) {
+		for (i = 0; i < SMPLWAV_NB_INFO_TAGS; i++) {
+			if (id == SMPLWAV_INFO_TAGS[i]) {
 				if (expect_null_or_str(&(wav->info[i]), &cmd_str) || expect_end_of_args(&cmd_str)) {
 					fprintf(stderr, "info commands requires exactly one string or 'null' argument\n");
 					return -1;
@@ -454,7 +454,7 @@ static int handle_info(struct wav_sample *wav, char *ck, char *cmd_str)
 	return -1;
 }
 
-static int handle_metastring(struct wav_sample *wav, char *cmd_str)
+static int handle_metastring(struct smplwav *wav, char *cmd_str)
 {
 	char *metastring = cmd_str;
 	char *command;
@@ -599,7 +599,7 @@ int main(int argc, char *argv[])
 	unsigned uerr;
 	size_t sz;
 	unsigned char *buf;
-	struct wav_sample wav;
+	struct smplwav wav;
 	unsigned i;
 
 	if (argc < 2) {

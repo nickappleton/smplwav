@@ -121,8 +121,8 @@
 /* Use this macro to extract the error code from a return value. */
 #define WSR_ERROR_CODE(x) ((x) & 0xFFu)
 
-unsigned smplwav_mount(struct wav_sample *wav, unsigned char *buf, size_t bufsz, unsigned flags);
+unsigned smplwav_mount(struct smplwav *wav, unsigned char *buf, size_t bufsz, unsigned flags);
 
-void sort_and_reassign_ids(struct wav_sample *wav);
+void sort_and_reassign_ids(struct smplwav *wav);
 
 #endif /* SMPLWAV_MOUNT_H */

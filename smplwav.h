@@ -26,10 +26,10 @@
 #include <assert.h>
 #include "cop/cop_attributes.h"
 
-#define WAV_SAMPLE_MAX_MARKERS             (64)
-#define WAV_SAMPLE_MAX_UNSUPPORTED_CHUNKS  (32)
+#define SMPLWAV_MAX_MARKERS             (64)
+#define SMPLWAV_MAX_UNSUPPORTED_CHUNKS  (32)
 
-struct wav_marker {
+struct smplwav_marker {
 	/* id, in_cue and in_smpl are used while the markers are being loaded.
 	 * They are not used by the serialisation code and are free to be read
 	 * from and written to by the calling code for other purposes. */
@@ -51,63 +51,62 @@ struct wav_marker {
 	uint_fast32_t         position;
 };
 
-#define WAV_SAMPLE_PCM16   (0)
-#define WAV_SAMPLE_PCM24   (1)
-#define WAV_SAMPLE_PCM32   (2)
-#define WAV_SAMPLE_FLOAT32 (3)
+#define SMPLWAV_FORMAT_PCM16   (0)
+#define SMPLWAV_FORMAT_PCM24   (1)
+#define SMPLWAV_FORMAT_PCM32   (2)
+#define SMPLWAV_FORMAT_FLOAT32 (3)
 
-struct wav_sample_format {
+struct smplwav_format {
 	int           format;
 	uint_fast32_t sample_rate;
 	uint_fast16_t channels;
 	uint_fast16_t bits_per_sample;
 };
 
-#define RIFF_ID(c1, c2, c3, c4) \
+#define SMPLWAV_RIFF_ID(c1, c2, c3, c4) \
 	(   ((uint_fast32_t)(c1)) \
 	|   (((uint_fast32_t)(c2)) << 8) \
 	|   (((uint_fast32_t)(c3)) << 16) \
 	|   (((uint_fast32_t)(c4)) << 24) \
 	)
 
-static COP_ATTR_UNUSED uint_fast32_t SUPPORTED_INFO_TAGS[] =
-{	RIFF_ID('I', 'A', 'R', 'L')
-,	RIFF_ID('I', 'A', 'R', 'T')
-,	RIFF_ID('I', 'C', 'M', 'S')
-,	RIFF_ID('I', 'C', 'M', 'T')
-,	RIFF_ID('I', 'C', 'O', 'P')
-,	RIFF_ID('I', 'C', 'R', 'D')
-,	RIFF_ID('I', 'C', 'R', 'P')
-,	RIFF_ID('I', 'D', 'I', 'M')
-,	RIFF_ID('I', 'D', 'P', 'I')
-,	RIFF_ID('I', 'E', 'N', 'G')
-,	RIFF_ID('I', 'G', 'N', 'R')
-,	RIFF_ID('I', 'K', 'E', 'Y')
-,	RIFF_ID('I', 'L', 'G', 'T')
-,	RIFF_ID('I', 'M', 'E', 'D')
-,	RIFF_ID('I', 'N', 'A', 'M')
-,	RIFF_ID('I', 'P', 'L', 'T')
-,	RIFF_ID('I', 'P', 'R', 'D')
-,	RIFF_ID('I', 'S', 'B', 'J')
-,	RIFF_ID('I', 'S', 'F', 'T')
-,	RIFF_ID('I', 'S', 'H', 'P')
-,	RIFF_ID('I', 'S', 'R', 'C')
-,	RIFF_ID('I', 'S', 'R', 'F')
-,	RIFF_ID('I', 'T', 'C', 'H')
+static COP_ATTR_UNUSED uint_fast32_t SMPLWAV_INFO_TAGS[] =
+{	SMPLWAV_RIFF_ID('I', 'A', 'R', 'L')
+,	SMPLWAV_RIFF_ID('I', 'A', 'R', 'T')
+,	SMPLWAV_RIFF_ID('I', 'C', 'M', 'S')
+,	SMPLWAV_RIFF_ID('I', 'C', 'M', 'T')
+,	SMPLWAV_RIFF_ID('I', 'C', 'O', 'P')
+,	SMPLWAV_RIFF_ID('I', 'C', 'R', 'D')
+,	SMPLWAV_RIFF_ID('I', 'C', 'R', 'P')
+,	SMPLWAV_RIFF_ID('I', 'D', 'I', 'M')
+,	SMPLWAV_RIFF_ID('I', 'D', 'P', 'I')
+,	SMPLWAV_RIFF_ID('I', 'E', 'N', 'G')
+,	SMPLWAV_RIFF_ID('I', 'G', 'N', 'R')
+,	SMPLWAV_RIFF_ID('I', 'K', 'E', 'Y')
+,	SMPLWAV_RIFF_ID('I', 'L', 'G', 'T')
+,	SMPLWAV_RIFF_ID('I', 'M', 'E', 'D')
+,	SMPLWAV_RIFF_ID('I', 'N', 'A', 'M')
+,	SMPLWAV_RIFF_ID('I', 'P', 'L', 'T')
+,	SMPLWAV_RIFF_ID('I', 'P', 'R', 'D')
+,	SMPLWAV_RIFF_ID('I', 'S', 'B', 'J')
+,	SMPLWAV_RIFF_ID('I', 'S', 'F', 'T')
+,	SMPLWAV_RIFF_ID('I', 'S', 'H', 'P')
+,	SMPLWAV_RIFF_ID('I', 'S', 'R', 'C')
+,	SMPLWAV_RIFF_ID('I', 'S', 'R', 'F')
+,	SMPLWAV_RIFF_ID('I', 'T', 'C', 'H')
 };
 
-#define NB_SUPPORTED_INFO_TAGS (sizeof(SUPPORTED_INFO_TAGS) / sizeof(SUPPORTED_INFO_TAGS[0]))
+#define SMPLWAV_NB_INFO_TAGS (sizeof(SMPLWAV_INFO_TAGS) / sizeof(SMPLWAV_INFO_TAGS[0]))
 
-struct wav_chunk {
+struct smplwav_extra_ck {
 	uint_fast32_t     id;
 	uint_fast32_t     size;
 	unsigned char    *data;
-	struct wav_chunk *next;
 };
 
-struct wav_sample {
+struct smplwav {
 	/* String metadata found in the info chunk. */
-	char                      *info[NB_SUPPORTED_INFO_TAGS];
+	char                      *info[SMPLWAV_NB_INFO_TAGS];
 
 	/* If there was a smpl chunk, this will always be non-zero and pitch-info
 	 * will be set to the midi pitch information. */
@@ -116,10 +115,10 @@ struct wav_sample {
 
 	/* Positional based metadata loaded from the waveform. */
 	unsigned                   nb_marker;
-	struct wav_marker          markers[WAV_SAMPLE_MAX_MARKERS];
+	struct smplwav_marker      markers[SMPLWAV_MAX_MARKERS];
 
 	/* The data format of the wave file. */
-	struct wav_sample_format   format;
+	struct smplwav_format      format;
 
 	/* The number of samples in the wave file and the pointer to its data. */
 	uint_fast32_t              data_frames;
@@ -129,18 +128,18 @@ struct wav_sample {
 	 * this implementation. This is anything other than: INFO, fmt, data, cue,
 	 * smpl, adtl and fact. */
 	unsigned                   nb_unsupported;
-	struct wav_chunk           unsupported[WAV_SAMPLE_MAX_UNSUPPORTED_CHUNKS];
+	struct smplwav_extra_ck    unsupported[SMPLWAV_MAX_UNSUPPORTED_CHUNKS];
 };
 
-static COP_ATTR_UNUSED uint_fast16_t get_container_size(int format)
+static COP_ATTR_UNUSED uint_fast16_t smplwav_format_container_size(int format)
 {
 	switch (format) {
-		case WAV_SAMPLE_PCM16:
+		case SMPLWAV_FORMAT_PCM16:
 			return 2;
-		case WAV_SAMPLE_PCM24:
+		case SMPLWAV_FORMAT_PCM24:
 			return 3;
 		default:
-			assert(format == WAV_SAMPLE_PCM32 || format == WAV_SAMPLE_FLOAT32);
+			assert(format == SMPLWAV_FORMAT_PCM32 || format == SMPLWAV_FORMAT_FLOAT32);
 			return 4;
 	}
 }

@@ -27,7 +27,7 @@ static void serialise_ltxt(unsigned char *buf, size_t *size, uint_fast32_t id, u
 {
 	if (buf != NULL) {
 		buf += *size;
-		cop_st_ule32(buf + 0, RIFF_ID('l', 't', 'x', 't'));
+		cop_st_ule32(buf + 0, SMPLWAV_RIFF_ID('l', 't', 'x', 't'));
 		cop_st_ule32(buf + 4, 20);
 		cop_st_ule32(buf + 8, id);
 		cop_st_ule32(buf + 12, length);
@@ -55,7 +55,7 @@ static void serialise_notelabl(unsigned char *buf, size_t *size, uint_fast32_t c
 	*size += 12 + len + (len & 1);
 }
 
-static void serialise_adtl(const struct wav_sample *wav, unsigned char *buf, size_t *size, int store_cue_loops)
+static void serialise_adtl(const struct smplwav *wav, unsigned char *buf, size_t *size, int store_cue_loops)
 {
 	size_t old_sz = *size;
 	size_t new_sz = old_sz + 12;
@@ -66,9 +66,9 @@ static void serialise_adtl(const struct wav_sample *wav, unsigned char *buf, siz
 		if (wav->markers[i].has_length && store_cue_loops)
 			serialise_ltxt(buf, &new_sz, i + 1, wav->markers[i].length);
 		if (wav->markers[i].name != NULL)
-			serialise_notelabl(buf, &new_sz, RIFF_ID('l', 'a', 'b', 'l'), i + 1, wav->markers[i].name);
+			serialise_notelabl(buf, &new_sz, SMPLWAV_RIFF_ID('l', 'a', 'b', 'l'), i + 1, wav->markers[i].name);
 		if (wav->markers[i].desc != NULL)
-			serialise_notelabl(buf, &new_sz, RIFF_ID('n', 'o', 't', 'e'), i + 1, wav->markers[i].desc);
+			serialise_notelabl(buf, &new_sz, SMPLWAV_RIFF_ID('n', 'o', 't', 'e'), i + 1, wav->markers[i].desc);
 	}
 
 	/* Only bother serialising if there were actually metadata items
@@ -77,15 +77,15 @@ static void serialise_adtl(const struct wav_sample *wav, unsigned char *buf, siz
 		assert(new_sz > old_sz + 12);
 		if (buf != NULL) {
 			buf += old_sz;
-			cop_st_ule32(buf + 0, RIFF_ID('L', 'I', 'S', 'T'));
+			cop_st_ule32(buf + 0, SMPLWAV_RIFF_ID('L', 'I', 'S', 'T'));
 			cop_st_ule32(buf + 4, new_sz - old_sz - 8);
-			cop_st_ule32(buf + 8, RIFF_ID('a', 'd', 't', 'l'));
+			cop_st_ule32(buf + 8, SMPLWAV_RIFF_ID('a', 'd', 't', 'l'));
 		}
 		*size = new_sz;
 	}
 }
 
-static void serialise_cue(const struct wav_sample *wav, unsigned char *buf, size_t *size, int store_cue_loops)
+static void serialise_cue(const struct smplwav *wav, unsigned char *buf, size_t *size, int store_cue_loops)
 {
 	unsigned i;
 	unsigned nb_cue = 0;
@@ -98,7 +98,7 @@ static void serialise_cue(const struct wav_sample *wav, unsigned char *buf, size
 			if (buf != NULL) {
 				cop_st_ule32(buf + 12 + nb_cue * 24, i + 1);
 				cop_st_ule32(buf + 16 + nb_cue * 24, 0);
-				cop_st_ule32(buf + 20 + nb_cue * 24, RIFF_ID('d', 'a', 't', 'a'));
+				cop_st_ule32(buf + 20 + nb_cue * 24, SMPLWAV_RIFF_ID('d', 'a', 't', 'a'));
 				cop_st_ule32(buf + 24 + nb_cue * 24, 0);
 				cop_st_ule32(buf + 28 + nb_cue * 24, 0);
 				cop_st_ule32(buf + 32 + nb_cue * 24, wav->markers[i].position);
@@ -109,7 +109,7 @@ static void serialise_cue(const struct wav_sample *wav, unsigned char *buf, size
 
 	if (nb_cue) {
 		if (buf != NULL) {
-			cop_st_ule32(buf + 0, RIFF_ID('c', 'u', 'e', ' '));
+			cop_st_ule32(buf + 0, SMPLWAV_RIFF_ID('c', 'u', 'e', ' '));
 			cop_st_ule32(buf + 4, 4 + nb_cue * 24);
 			cop_st_ule32(buf + 8, nb_cue);
 		}
@@ -117,7 +117,7 @@ static void serialise_cue(const struct wav_sample *wav, unsigned char *buf, size
 	}
 }
 
-static void serialise_smpl(const struct wav_sample *wav, unsigned char *buf, size_t *size)
+static void serialise_smpl(const struct smplwav *wav, unsigned char *buf, size_t *size)
 {
 	unsigned i;
 	unsigned nb_loop = 0;
@@ -141,7 +141,7 @@ static void serialise_smpl(const struct wav_sample *wav, unsigned char *buf, siz
 
 	if (nb_loop || wav->has_pitch_info) {
 		if (buf != NULL) {
-			cop_st_ule32(buf + 0, RIFF_ID('s', 'm', 'p', 'l'));
+			cop_st_ule32(buf + 0, SMPLWAV_RIFF_ID('s', 'm', 'p', 'l'));
 			cop_st_ule32(buf + 4, 36 + nb_loop * 24);
 			cop_st_ule32(buf + 8, 0);
 			cop_st_ule32(buf + 12, 0);
@@ -157,15 +157,15 @@ static void serialise_smpl(const struct wav_sample *wav, unsigned char *buf, siz
 	}
 }
 
-static int serialise_format(const struct wav_sample_format *fmt, unsigned char *buf, size_t *size)
+static int serialise_format(const struct smplwav_format *fmt, unsigned char *buf, size_t *size)
 {
 	static const unsigned char EXTENSIBLE_GUID_SUFFIX[14] = {/* AA, BB, */ 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x80, 0x00, 0x00, 0xAA, 0x00, 0x38, 0x9B, 0x71};
 	int           format_code      = fmt->format;
-	uint_fast16_t container_size   = get_container_size(format_code);
+	uint_fast16_t container_size   = smplwav_format_container_size(format_code);
 	uint_fast16_t container_bits   = container_size * 8;
 	uint_fast16_t bits_per_sample  = fmt->bits_per_sample;
 	int           extensible       = container_bits != bits_per_sample;
-	uint_fast16_t basic_format_tag = (format_code == WAV_SAMPLE_FLOAT32) ? 0x0003u : 0x0001u;
+	uint_fast16_t basic_format_tag = (format_code == SMPLWAV_FORMAT_FLOAT32) ? 0x0003u : 0x0001u;
 	uint_fast16_t format_tag       = (extensible) ? 0xFFFEu : basic_format_tag;
 	const size_t  fmt_sz           = (extensible) ? 48 : ((basic_format_tag == 1) ? 24 : 26);
 
@@ -176,7 +176,7 @@ static int serialise_format(const struct wav_sample_format *fmt, unsigned char *
 
 		buf += *size;
 
-		cop_st_ule32(buf + 0, RIFF_ID('f', 'm', 't', ' '));
+		cop_st_ule32(buf + 0, SMPLWAV_RIFF_ID('f', 'm', 't', ' '));
 		cop_st_ule32(buf + 4, fmt_sz - 8);
 		cop_st_ule16(buf + 8, format_tag);
 		cop_st_ule16(buf + 10, channels);
@@ -204,7 +204,7 @@ static void serialise_fact(uint_fast32_t data_frames, unsigned char *buf, size_t
 {
 	if (buf != NULL) {
 		buf += *size;
-		cop_st_ule32(buf,     RIFF_ID('f', 'a', 'c', 't'));
+		cop_st_ule32(buf,     SMPLWAV_RIFF_ID('f', 'a', 'c', 't'));
 		cop_st_ule32(buf + 4, 4);
 		cop_st_ule32(buf + 8, data_frames);
 	}
@@ -224,12 +224,12 @@ static void serialise_blob(uint_fast32_t id, const unsigned char *ckdata, uint_f
 	*size += 8 + cksize + (cksize & 1);
 }
 
-static void serialise_data(const struct wav_sample_format *format, void *data, uint_fast32_t data_frames, unsigned char *buf, size_t *size)
+static void serialise_data(const struct smplwav_format *format, void *data, uint_fast32_t data_frames, unsigned char *buf, size_t *size)
 {
-	uint_fast16_t container_size = get_container_size(format->format);
+	uint_fast16_t container_size = smplwav_format_container_size(format->format);
 	uint_fast16_t block_align = container_size * format->channels;
 	uint_fast32_t data_size = data_frames * block_align;
-	serialise_blob(RIFF_ID('d', 'a', 't', 'a'), data, data_size, buf, size);
+	serialise_blob(SMPLWAV_RIFF_ID('d', 'a', 't', 'a'), data, data_size, buf, size);
 }
 
 static void serialise_zstrblob(uint_fast32_t id, const char *value, unsigned char *buf, size_t *size)
@@ -245,8 +245,8 @@ static void serialise_info(char * const *infoset, unsigned char *buf, size_t *si
 	size_t new_sz = old_sz + 12;
 	unsigned i;
 
-	for (i = 0; i < NB_SUPPORTED_INFO_TAGS; i++) {
-		serialise_zstrblob(SUPPORTED_INFO_TAGS[i], infoset[i], buf, &new_sz);
+	for (i = 0; i < SMPLWAV_NB_INFO_TAGS; i++) {
+		serialise_zstrblob(SMPLWAV_INFO_TAGS[i], infoset[i], buf, &new_sz);
 	}
 
 	/* Only bother serialising if there were actually metadata items
@@ -255,15 +255,15 @@ static void serialise_info(char * const *infoset, unsigned char *buf, size_t *si
 		assert(new_sz > old_sz + 12);
 		if (buf != NULL) {
 			buf += old_sz;
-			cop_st_ule32(buf + 0, RIFF_ID('L', 'I', 'S', 'T'));
+			cop_st_ule32(buf + 0, SMPLWAV_RIFF_ID('L', 'I', 'S', 'T'));
 			cop_st_ule32(buf + 4, new_sz - old_sz - 8);
-			cop_st_ule32(buf + 8, RIFF_ID('I', 'N', 'F', 'O'));
+			cop_st_ule32(buf + 8, SMPLWAV_RIFF_ID('I', 'N', 'F', 'O'));
 		}
 		*size = new_sz;
 	}
 }
 
-void smplwav_serialise(const struct wav_sample *wav, unsigned char *buf, size_t *size, int store_cue_loops)
+void smplwav_serialise(const struct smplwav *wav, unsigned char *buf, size_t *size, int store_cue_loops)
 {
 	unsigned i;
 	*size = 12;
@@ -278,8 +278,8 @@ void smplwav_serialise(const struct wav_sample *wav, unsigned char *buf, size_t 
 	for (i = 0; i < wav->nb_unsupported; i++)
 		serialise_blob(wav->unsupported[i].id, wav->unsupported[i].data, wav->unsupported[i].size, buf, size);
 	if (buf != NULL) {
-		cop_st_ule32(buf, RIFF_ID('R', 'I', 'F', 'F'));
+		cop_st_ule32(buf, SMPLWAV_RIFF_ID('R', 'I', 'F', 'F'));
 		cop_st_ule32(buf + 4, *size - 8);
-		cop_st_ule32(buf + 8, RIFF_ID('W', 'A', 'V', 'E'));
+		cop_st_ule32(buf + 8, SMPLWAV_RIFF_ID('W', 'A', 'V', 'E'));
 	}
 }

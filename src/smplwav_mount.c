@@ -22,10 +22,10 @@
 #include "cop/cop_conversions.h"
 #include <string.h>
 
-static struct wav_marker *get_new_marker(struct wav_sample *wav)
+static struct smplwav_marker *get_new_marker(struct smplwav *wav)
 {
-	struct wav_marker *m;
-	if (wav->nb_marker >= WAV_SAMPLE_MAX_MARKERS)
+	struct smplwav_marker *m;
+	if (wav->nb_marker >= SMPLWAV_MAX_MARKERS)
 		return NULL;
 	m = wav->markers + wav->nb_marker++;
 	m->id           = 0;
@@ -39,15 +39,10 @@ static struct wav_marker *get_new_marker(struct wav_sample *wav)
 	return m;
 }
 
-static
-struct wav_marker *
-get_marker
-	(struct wav_sample *wav
-	,uint_fast32_t      id
-	)
+static struct smplwav_marker *get_marker(struct smplwav *wav, uint_fast32_t id)
 {
 	unsigned i;
-	struct wav_marker *marker;
+	struct smplwav_marker *marker;
 	for (i = 0; i < wav->nb_marker; i++) {
 		if (wav->markers[i].id == id)
 			return &(wav->markers[i]);
@@ -57,7 +52,7 @@ get_marker
 	return marker;
 }
 
-void sort_and_reassign_ids(struct wav_sample *wav)
+void sort_and_reassign_ids(struct smplwav *wav)
 {
 	unsigned i;
 	for (i = 1; i < wav->nb_marker; i++) {
@@ -68,7 +63,7 @@ void sort_and_reassign_ids(struct wav_sample *wav)
 			uint_fast64_t i_key = (((uint_fast64_t)wav->markers[i-1].position) << 32) | (wav->markers[i-1].length ^ 0xFFFFFFFF);
 			uint_fast64_t j_key = (((uint_fast64_t)wav->markers[j].position) << 32) | (wav->markers[j].length ^ 0xFFFFFFFF);
 			if ((j_loop && !i_loop) || (j_loop == i_loop && j_key < i_key)) {
-				struct wav_marker m = wav->markers[i-1];
+				struct smplwav_marker m = wav->markers[i-1];
 				wav->markers[i-1] = wav->markers[j];
 				wav->markers[j] = m;
 			}
@@ -80,7 +75,7 @@ void sort_and_reassign_ids(struct wav_sample *wav)
 static
 unsigned
 load_adtl
-	(struct wav_sample *wav
+	(struct smplwav *wav
 	,unsigned char     *adtl
 	,size_t             adtl_len
 	)
@@ -101,7 +96,7 @@ load_adtl
 		unsigned char     *meta_base  = adtl + 8;
 		int                is_ltxt;
 		int                is_note;
-		struct wav_marker *marker;
+		struct smplwav_marker *marker;
 		uint_fast64_t      cksz;
 
 		/* Move the adtl pointer to the start of the next chunk.*/
@@ -115,10 +110,10 @@ load_adtl
 		/* Make sure this is a chunk we can actually understand. If there
 		 * are chunks in the adtl list which are unknown to us, we could
 		 * end up breaking metadata. */
-		is_ltxt = (meta_class == RIFF_ID('l', 't', 'x', 't'));
-		is_note = (meta_class == RIFF_ID('n', 'o', 't', 'e'));
+		is_ltxt = (meta_class == SMPLWAV_RIFF_ID('l', 't', 'x', 't'));
+		is_note = (meta_class == SMPLWAV_RIFF_ID('n', 'o', 't', 'e'));
 		if  (  !(is_ltxt && meta_size == 20)
-		    && !((is_note || (meta_class == RIFF_ID('l', 'a', 'b', 'l'))) && meta_size >= 4)
+		    && !((is_note || (meta_class == SMPLWAV_RIFF_ID('l', 'a', 'b', 'l'))) && meta_size >= 4)
 		    )
 			return warnings | WSR_ERROR_ADTL_INVALID;
 
@@ -161,7 +156,7 @@ load_adtl
 static
 unsigned
 load_cue
-	(struct wav_sample *wav
+	(struct smplwav *wav
 	,unsigned char     *cue
 	,size_t             cue_len
 	)
@@ -174,7 +169,7 @@ load_cue
 	cue += 4;
 	while (ncue--) {
 		uint_fast32_t cue_id      = cop_ld_ule32(cue);
-		struct wav_marker *marker = get_marker(wav, cue_id);
+		struct smplwav_marker *marker = get_marker(wav, cue_id);
 		if (marker == NULL)
 			return WSR_ERROR_TOO_MANY_MARKERS;
 
@@ -192,7 +187,7 @@ load_cue
 static
 unsigned
 load_smpl
-	(struct wav_sample *wav
+	(struct smplwav *wav
 	,unsigned char     *smpl
 	,size_t             smpl_len
 	)
@@ -213,7 +208,7 @@ load_smpl
 		uint_fast32_t      end   = cop_ld_ule32(smpl + 12);
 		uint_fast32_t      length;
 		unsigned           j;
-		struct wav_marker *marker;
+		struct smplwav_marker *marker;
 
 		if (start > end)
 			return WSR_ERROR_SMPL_INVALID;
@@ -257,7 +252,7 @@ load_smpl
 static
 unsigned
 check_and_finalise_markers
-	(struct wav_sample *wav
+	(struct smplwav *wav
 	,unsigned           flags
 	)
 {
@@ -319,7 +314,7 @@ check_and_finalise_markers
 	return 0;
 }
 
-static unsigned load_sample_format(struct wav_sample_format *format, unsigned char *fmt_ptr, size_t fmt_sz)
+static unsigned load_sample_format(struct smplwav_format *format, unsigned char *fmt_ptr, size_t fmt_sz)
 {
 	static const unsigned char EXTENSIBLE_GUID_SUFFIX[14] = {/* AA, BB, */ 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x80, 0x00, 0x00, 0xAA, 0x00, 0x38, 0x9B, 0x71};
 
@@ -360,13 +355,13 @@ static unsigned load_sample_format(struct wav_sample_format *format, unsigned ch
 	format->channels = channels;
 
 	if (format_tag == 1 && container_bytes == 2)
-		format->format = WAV_SAMPLE_PCM16;
+		format->format = SMPLWAV_FORMAT_PCM16;
 	else if (format_tag == 1 && container_bytes == 3)
-		format->format = WAV_SAMPLE_PCM24;
+		format->format = SMPLWAV_FORMAT_PCM24;
 	else if (format_tag == 1 && container_bytes == 4)
-		format->format = WAV_SAMPLE_PCM32;
+		format->format = SMPLWAV_FORMAT_PCM32;
 	else if (format_tag == 3 && container_bytes == 4)
-		format->format = WAV_SAMPLE_FLOAT32; 
+		format->format = SMPLWAV_FORMAT_FLOAT32; 
 	else
 		return WSR_ERROR_FMT_UNSUPPORTED;
 
@@ -409,36 +404,36 @@ static unsigned load_info(char **infoset, unsigned char *buf, size_t sz)
 			continue;
 		}
 
-		for (i = 0; i < NB_SUPPORTED_INFO_TAGS; i++) {
-			if (SUPPORTED_INFO_TAGS[i] == ckid) {
+		for (i = 0; i < SMPLWAV_NB_INFO_TAGS; i++) {
+			if (SMPLWAV_INFO_TAGS[i] == ckid) {
 				infoset[i] = base;
 				break;
 			}
 		}
 
-		if (i == NB_SUPPORTED_INFO_TAGS)
+		if (i == SMPLWAV_NB_INFO_TAGS)
 			return WSR_ERROR_INFO_UNSUPPORTED;
 	}
 
 	return warnings;
 }
 
-unsigned smplwav_mount(struct wav_sample *wav, unsigned char *buf, size_t bufsz, unsigned flags)
+unsigned smplwav_mount(struct smplwav *wav, unsigned char *buf, size_t bufsz, unsigned flags)
 {
 	uint_fast32_t riff_sz;
 	unsigned warnings = 0;
-	struct wav_chunk info;
-	struct wav_chunk adtl;
-	struct wav_chunk cue;
-	struct wav_chunk smpl;
-	struct wav_chunk fact;
-	struct wav_chunk data;
-	struct wav_chunk fmt;
+	struct smplwav_extra_ck info;
+	struct smplwav_extra_ck adtl;
+	struct smplwav_extra_ck cue;
+	struct smplwav_extra_ck smpl;
+	struct smplwav_extra_ck fact;
+	struct smplwav_extra_ck data;
+	struct smplwav_extra_ck fmt;
 
 	if  (   (bufsz < 12)
-	    ||  (cop_ld_ule32(buf) != RIFF_ID('R', 'I', 'F', 'F'))
+	    ||  (cop_ld_ule32(buf) != SMPLWAV_RIFF_ID('R', 'I', 'F', 'F'))
 	    ||  ((riff_sz = cop_ld_ule32(buf + 4)) < 4)
-	    ||  (cop_ld_ule32(buf + 8) != RIFF_ID('W', 'A', 'V', 'E'))
+	    ||  (cop_ld_ule32(buf + 8) != SMPLWAV_RIFF_ID('W', 'A', 'V', 'E'))
 	    )
 		return WSR_ERROR_NOT_A_WAVE;
 
@@ -466,11 +461,11 @@ unsigned smplwav_mount(struct wav_sample *wav, unsigned char *buf, size_t bufsz,
 	fmt.data  = NULL;
 
 	while (riff_sz >= 8) {
-		uint_fast32_t      ckid           = cop_ld_ule32(buf);
-		uint_fast32_t      cksz           = cop_ld_ule32(buf + 4);
-		int                required_chunk = 0;
-		unsigned char     *ckbase         = buf + 8;
-		struct wav_chunk  *known_ptr      = NULL;
+		uint_fast32_t            ckid           = cop_ld_ule32(buf);
+		uint_fast32_t            cksz           = cop_ld_ule32(buf + 4);
+		int                      required_chunk = 0;
+		unsigned char           *ckbase         = buf + 8;
+		struct smplwav_extra_ck *known_ptr      = NULL;
 
 		/* Compute the amount of data left and move buf to point to the next
 		 * chunk. We always truncate the length of the chunk if it would go
@@ -487,19 +482,19 @@ unsigned smplwav_mount(struct wav_sample *wav, unsigned char *buf, size_t bufsz,
 
 		/* Figure out if this is a required chunk, a "known" chunk or if we
 		 * don't know what the chunk is for. */
-		if (ckid == RIFF_ID('L', 'I', 'S', 'T') && cksz >= 4) {
+		if (ckid == SMPLWAV_RIFF_ID('L', 'I', 'S', 'T') && cksz >= 4) {
 			switch (cop_ld_ule32(ckbase)) {
-				case RIFF_ID('a', 'd', 't', 'l'): known_ptr = &adtl; break;
-				case RIFF_ID('I', 'N', 'F', 'O'): known_ptr = &info; break;
+				case SMPLWAV_RIFF_ID('a', 'd', 't', 'l'): known_ptr = &adtl; break;
+				case SMPLWAV_RIFF_ID('I', 'N', 'F', 'O'): known_ptr = &info; break;
 				default: break;
 			}
 		} else {
 			switch (ckid) {
-				case RIFF_ID('d', 'a', 't', 'a'): known_ptr = &data; required_chunk = 1; break;
-				case RIFF_ID('f', 'm', 't', ' '): known_ptr = &fmt;  required_chunk = 1; break;
-				case RIFF_ID('f', 'a', 'c', 't'): known_ptr = &fact; required_chunk = 1; break;
-				case RIFF_ID('c', 'u', 'e', ' '): known_ptr = &cue;  break;
-				case RIFF_ID('s', 'm', 'p', 'l'): known_ptr = &smpl; break;
+				case SMPLWAV_RIFF_ID('d', 'a', 't', 'a'): known_ptr = &data; required_chunk = 1; break;
+				case SMPLWAV_RIFF_ID('f', 'm', 't', ' '): known_ptr = &fmt;  required_chunk = 1; break;
+				case SMPLWAV_RIFF_ID('f', 'a', 'c', 't'): known_ptr = &fact; required_chunk = 1; break;
+				case SMPLWAV_RIFF_ID('c', 'u', 'e', ' '): known_ptr = &cue;  break;
+				case SMPLWAV_RIFF_ID('s', 'm', 'p', 'l'): known_ptr = &smpl; break;
 				default: break;
 			}
 		}
@@ -521,7 +516,7 @@ unsigned smplwav_mount(struct wav_sample *wav, unsigned char *buf, size_t bufsz,
 				if (known_ptr->data != NULL)
 					return warnings | WSR_ERROR_DUPLICATE_CHUNKS;
 			} else {
-				if (wav->nb_unsupported >= WAV_SAMPLE_MAX_UNSUPPORTED_CHUNKS)
+				if (wav->nb_unsupported >= SMPLWAV_MAX_UNSUPPORTED_CHUNKS)
 					return warnings | WSR_ERROR_TOO_MANY_CHUNKS;
 
 				known_ptr = wav->unsupported + wav->nb_unsupported++;
@@ -541,7 +536,7 @@ unsigned smplwav_mount(struct wav_sample *wav, unsigned char *buf, size_t bufsz,
 			return warnings;
 
 		/* Compute the number of frames in the audio. */
-		block_align      = (wav->format.channels * get_container_size(wav->format.format));
+		block_align      = (wav->format.channels * smplwav_format_container_size(wav->format.format));
 
 		/* If the data chunk does not contain a whole multiple of frames, it
 		 * is missing audio and we should probably (??) abort the load. */

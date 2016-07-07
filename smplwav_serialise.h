@@ -35,6 +35,6 @@
  *
  * It is undefined for any of the values in the wav_sample structure to be
  * invalid. */
-void smplwav_serialise(const struct wav_sample *wav, unsigned char *buf, size_t *size, int store_cue_loops);
+void smplwav_serialise(const struct smplwav *wav, unsigned char *buf, size_t *size, int store_cue_loops);
 
 #endif /* SMPLWAV_SERIALISE_H */
