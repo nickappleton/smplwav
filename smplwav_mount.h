@@ -113,11 +113,11 @@
  * smpl chunk). This is the only error message where the markers in the output
  * can be examined - and this is only for diagnostic purposes. If a marker
  * has:
- *   in_cue && in_smpl && has_length && (length > 0):
+ *   in_cue && in_smpl && (length > 0):
  *     The loop has been reconciled and is the same in both chunks.
- *   !in_cue && in_smpl && has_length && (length > 0):
+ *   !in_cue && in_smpl && (length > 0):
  *     This loop is in the sampler chunk but not in the cue chunk.
- *   in_cue && !in_smpl && has_length && (length > 0):
+ *   in_cue && !in_smpl && (length > 0):
  *     This loop is in the cue chunk but not in the smpl chunk.
  * All other markers should be ignored. The SMPLWAV_MOUNT_PREFER options will
  * permit the load to continue selecting which items to preserve. */
