@@ -534,6 +534,8 @@ unsigned smplwav_mount(struct smplwav *wav, unsigned char *buf, size_t bufsz, un
 			return warnings;
 	}
 
+	assert(wav->nb_marker == 0);
+
 	if (adtl.data != NULL) {
 		if (SMPLWAV_ERROR_CODE(warnings |= load_adtl(wav, adtl.data, adtl.size)))
 			return warnings;

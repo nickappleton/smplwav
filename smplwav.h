@@ -30,9 +30,10 @@
 #define SMPLWAV_MAX_UNSUPPORTED_CHUNKS  (32)
 
 struct smplwav_marker {
-	/* id, in_cue and in_smpl are used while the markers are being loaded.
-	 * They are not used by the serialisation code and are free to be read
-	 * from and written to by the calling code for other purposes. */
+	/* id, in_cue, in_smpl and has_ltxt are used while the markers are being
+	 * prepared by smplwav_mount(). They are not used by the serialisation
+	 * code and are free to be read from and written to by the calling code
+	 * for other purposes. */
 	uint_fast32_t         id;
 	int                   in_cue;
 	int                   in_smpl;
