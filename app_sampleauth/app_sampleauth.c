@@ -338,13 +338,16 @@ static int expect_null(char **cmd_str)
 static int expect_null_or_str(char **str, char **cmd_str)
 {
 	char *s = *cmd_str;
+	int err;
+	*str     = NULL;
 	if (*s == '\"')
-		return expect_string(str, &s);
-	if (expect_null(&s)) {
+		err = expect_string(str, &s);
+	else
+		err = expect_null(&s);
+	if (err) {
 		fprintf(stderr, "expected a quoted string or 'null'\n");
 		return -1;
 	}
-	*str     = NULL;
 	*cmd_str = s;
 	return 0;
 }
@@ -409,31 +412,47 @@ static int handle_loop(struct smplwav *wav, char *cmd_str)
 
 static int handle_cue(struct smplwav *wav, char *cmd_str)
 {
+	uint_fast64_t start;
+	char *name;
+	char *desc;
+
+	if  (   expect_int(&start, &cmd_str)
+	    ||  expect_whitespace(&cmd_str)
+	    ||  expect_null_or_str(&name, &cmd_str)
+	    ||  expect_whitespace(&cmd_str)
+	    ||  expect_null_or_str(&desc, &cmd_str)
+	    ||  expect_end_of_args(&cmd_str)
+	    ) {
+		fprintf(stderr, "cue command expects one integer arguments followed by two string or null arguments\n");
+		return -1;
+	}
+
+	if (wav->nb_marker >= SMPLWAV_MAX_MARKERS) {
+		fprintf(stderr, "cannot add another loop - too much marker metadata\n");
+		return -1;
+	}
+
+	wav->markers[wav->nb_marker].name       = name;
+	wav->markers[wav->nb_marker].desc       = desc;
+	wav->markers[wav->nb_marker].length     = 0;
+	wav->markers[wav->nb_marker].has_length = 0;
+	wav->markers[wav->nb_marker].position   = start;
+	wav->nb_marker++;
+
 	return 0;
 }
 
 static int handle_smplpitch(struct smplwav *wav, char *cmd_str)
 {
 	uint_fast64_t pitch;
-
-	if (*cmd_str == '\0') {
-		wav->has_pitch_info = 0;
-		return 0;
-	}
-
-	if (expect_int(&pitch, &cmd_str))
-		return -1;
-
-	eat_whitespace(&cmd_str);
-
-	if (*cmd_str != '\0') {
-		fprintf(stderr, "smpl-pitch command requires one numeric argument\n");
+	int set_pitch = expect_null(&cmd_str);
+	int err       = set_pitch && expect_int(&pitch, &cmd_str);
+	if (err || expect_end_of_args(&cmd_str)) {
+		fprintf(stderr, "smpl-pitch command expects one integer or null argument\n");
 		return -1;
 	}
-
-	wav->pitch_info = pitch;
-	wav->has_pitch_info = 1;
-
+	wav->has_pitch_info = set_pitch;
+	wav->pitch_info = (set_pitch) ? pitch : 0;
 	return 0;
 }
 
@@ -560,21 +579,22 @@ void print_usage(FILE *f, const char *pname)
 	fprintf(f, "   or more whitespace separated parameters. Parameters may be quoted. The\n");
 	fprintf(f, "   following commands exist:\n");
 	fprintf(f, "     loop ( start sample ) ( duration ) ( name ) ( description )\n");
-	fprintf(f, "       Add a loop to the sample. duration must be at least 1.\n");
+	fprintf(f, "       Add a loop to the sample. duration must be at least 1. Name or\n");
+	fprintf(f, "       description may be \"null\".\n");
 	fprintf(f, "     cue ( sample ) ( name ) ( description )\n");
-	fprintf(f, "       Add a cue point to the sample.\n");
-	fprintf(f, "     smpl-pitch [ smpl pitch ]\n");
+	fprintf(f, "       Add a cue point to the sample. Name or description may be \"null\".\n");
+	fprintf(f, "     smpl-pitch ( smpl pitch )\n");
 	fprintf(f, "       Store pitch information in sampler chunk. The value is the MIDI note\n");
 	fprintf(f, "       multiplied by 2^32. This is to deal with the way the value is stored in\n");
-	fprintf(f, "       the smpl chunk. If the argument is not supplied, the pitch information\n");
-	fprintf(f, "       will be removed (this has no effect if the sample contains loops).\n");
+	fprintf(f, "       the smpl chunk. The argument may be \"null\" to remove the pitch\n");
+	fprintf(f, "       information (this has no effect if the sample contains loops).\n");
 	fprintf(f, "     info-XXXX [ string ]\n");
 	fprintf(f, "       Store string in the RIFF INFO chunk where XXXX is the ID of the info\n");
 	fprintf(f, "       key. See the RIFF MCI spec for a list of keys. Some include:\n");
 	fprintf(f, "         info-IARL   Archival location.\n");
 	fprintf(f, "         info-IART   Artist.\n");
 	fprintf(f, "         info-ICOP   Copyright information.\n");
-	fprintf(f, "       If the argument is not supplied, the metadata item will be removed.\n");
+	fprintf(f, "       The argument may be \"null\" to remove the metadata item.\n");
 	fprintf(f, "6) If \"--output-metadata\" is specified, the metadata which has been loaded and\n");
 	fprintf(f, "   potentially modified will be dumped to stdout in a format which can be used\n");
 	fprintf(f, "   by \"--input-metadata\".\n");
@@ -594,6 +614,8 @@ void print_usage(FILE *f, const char *pname)
 	fprintf(f, "   Copy the pitch information from in.wav into dest.wav.\n\n");
 }
 
+#define STDIN_READ_BUFSZ (1024)
+
 int main(int argc, char *argv[])
 {
 	struct wavauth_options opts;
@@ -603,6 +625,9 @@ int main(int argc, char *argv[])
 	unsigned char *buf;
 	struct smplwav wav;
 	unsigned i;
+	char *stdinbuf = NULL;
+	size_t stdinbufsz = 0;
+	size_t stdinbufpos = 0;
 
 	if (argc < 2) {
 		print_usage(stdout, argv[0]);
@@ -644,36 +669,64 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	smplwav_sort_markers(&wav);
-
 	if (err == 0 && (opts.flags & FLAG_INPUT_METADATA)) {
-		char c;
-		char linebuf[1024];
-		unsigned llen = 0;
-		printf("STDIN:");
-		while ((c = getchar()) != EOF) {
-			if (c == '\r' || c == '\n') {
-				linebuf[llen] = '\0';
-
-				llen = 0;
+		size_t nread;
+		while (err == 0 && !feof(stdin)) {
+			if (stdinbufpos + STDIN_READ_BUFSZ + 1 > stdinbufsz) {
+				char *nb;
+				stdinbufsz = stdinbufpos + 2*STDIN_READ_BUFSZ + 1;
+				nb = realloc(stdinbuf, stdinbufsz);
+				if (nb == NULL) {
+					fprintf(stderr, "out of memory\n");
+					err = -1;
+				}
+				stdinbuf = nb;
 			}
-//			printf("%c", c);
+			if (!err) {
+				nread = fread(stdinbuf + stdinbufpos, 1, STDIN_READ_BUFSZ, stdin);
+				stdinbufpos += nread;
+				if (ferror(stdin)) {
+					fprintf(stderr, "error reading from stdin\n");
+					err = -1;
+				}
+			}
 		}
-		printf("\n");
-		abort();
+
+		if (err == 0 && stdinbufpos > 0) {
+			stdinbuf[stdinbufpos] = '\0';
+			stdinbufpos = 0;
+			while (err == 0) {
+				size_t epos = stdinbufpos;
+				while (stdinbuf[epos] != '\0' && stdinbuf[epos] != '\r' && stdinbuf[epos] != '\n')
+					epos++;
+				if (stdinbuf[epos] == '\0') {
+					if (epos - stdinbufpos > 0)
+						err = handle_metastring(&wav, stdinbuf + stdinbufpos);
+					break;
+				}
+				if (epos - stdinbufpos > 0) {
+					stdinbuf[epos] = '\0';
+					err = handle_metastring(&wav, stdinbuf + stdinbufpos);
+				}
+				stdinbufpos = epos + 1;
+			}
+		}
 	}
 
 	for (i = 0; err == 0 && i < opts.nb_set_items; i++) {
 		err = handle_metastring(&wav, opts.set_items[i]);
 	}
 
-	smplwav_sort_markers(&wav);
+	if (err == 0) {
+		smplwav_sort_markers(&wav);
+		if (opts.flags & FLAG_OUTPUT_METADATA)
+			dump_metadata(&wav);
+		if (opts.output_filename != NULL)
+			err = dump_sample(&wav, opts.output_filename, (opts.flags & FLAG_WRITE_CUE_LOOPS) == FLAG_WRITE_CUE_LOOPS);
+	}
 
-	if (err == 0 && (opts.flags & FLAG_OUTPUT_METADATA))
-		dump_metadata(&wav);
-
-	if (err == 0 && opts.output_filename != NULL)
-		err = dump_sample(&wav, opts.output_filename, (opts.flags & FLAG_WRITE_CUE_LOOPS) == FLAG_WRITE_CUE_LOOPS);
+	if (stdinbuf != NULL)
+		free(stdinbuf);
 
 	free(buf);
 
