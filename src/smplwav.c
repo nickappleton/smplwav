@@ -26,8 +26,8 @@ void smplwav_sort_markers(struct smplwav *wav)
 	for (i = 1; i < wav->nb_marker; i++) {
 		unsigned j;
 		for (j = i; j < wav->nb_marker; j++) {
-			int i_loop = wav->markers[i-1].has_length && wav->markers[i-1].length > 0;
-			int j_loop = wav->markers[j].has_length && wav->markers[j].length > 0;
+			int i_loop = wav->markers[i-1].length > 0;
+			int j_loop = wav->markers[j].length > 0;
 			uint_fast64_t i_key = (((uint_fast64_t)wav->markers[i-1].position) << 32) | (wav->markers[i-1].length ^ 0xFFFFFFFF);
 			uint_fast64_t j_key = (((uint_fast64_t)wav->markers[j].position) << 32) | (wav->markers[j].length ^ 0xFFFFFFFF);
 			if ((j_loop && !i_loop) || (j_loop == i_loop && j_key < i_key)) {

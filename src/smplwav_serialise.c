@@ -31,7 +31,7 @@ static void serialise_ltxt(unsigned char *buf, size_t *size, uint_fast32_t id, u
 		cop_st_ule32(buf + 4, 20);
 		cop_st_ule32(buf + 8, id);
 		cop_st_ule32(buf + 12, length);
-		cop_st_ule32(buf + 16, 0);
+		cop_st_ule32(buf + 16, SMPLWAV_RIFF_ID('r', 'g', 'n', ' '));
 		cop_st_ule16(buf + 20, 0);
 		cop_st_ule16(buf + 22, 0);
 		cop_st_ule16(buf + 24, 0);
@@ -63,7 +63,7 @@ static void serialise_adtl(const struct smplwav *wav, unsigned char *buf, size_t
 
 	/* Serialise any metadata that might exist. */
 	for (i = 0; i < wav->nb_marker; i++) {
-		if (wav->markers[i].has_length && store_cue_loops)
+		if (store_cue_loops)
 			serialise_ltxt(buf, &new_sz, i + 1, wav->markers[i].length);
 		if (wav->markers[i].name != NULL)
 			serialise_notelabl(buf, &new_sz, SMPLWAV_RIFF_ID('l', 'a', 'b', 'l'), i + 1, wav->markers[i].name);
@@ -126,7 +126,7 @@ static void serialise_smpl(const struct smplwav *wav, unsigned char *buf, size_t
 		buf += *size;
 
 	for (i = 0; i < wav->nb_marker; i++) {
-		if (wav->markers[i].has_length && wav->markers[i].length > 0) {
+		if (wav->markers[i].length > 0) {
 			if (buf != NULL) {
 				cop_st_ule32(buf + 44 + 24 * nb_loop, i + 1);
 				cop_st_ule32(buf + 48 + 24 * nb_loop, 0);

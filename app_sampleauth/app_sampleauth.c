@@ -22,6 +22,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <string.h>
+#include "cop/cop_filemap.h"
 #include "smplwav/smplwav_mount.h"
 #include "smplwav/smplwav_serialise.h"
 
@@ -186,7 +187,7 @@ static void dump_metadata(const struct smplwav *wav)
 		printf("smpl-pitch %llu\n", wav->pitch_info);
 	for (i = 0; i < wav->nb_marker; i++) {
 		assert(wav->markers[i].in_cue || wav->markers[i].in_smpl);
-		if (wav->markers[i].has_length && wav->markers[i].length > 0) {
+		if (wav->markers[i].length > 0) {
 			printf("loop %u %u ", wav->markers[i].position, wav->markers[i].length);
 			printstr(wav->markers[i].name);
 			printf(" ");
@@ -402,6 +403,11 @@ static int handle_loop(struct smplwav *wav, char *cmd_str)
 		return -1;
 	}
 
+	if (duration == 0) {
+		fprintf(stderr, "cannot add a loop of zero duration\n");
+		return -1;
+	}
+
 	if (wav->nb_marker >= SMPLWAV_MAX_MARKERS) {
 		fprintf(stderr, "cannot add another loop - too much marker metadata\n");
 		return -1;
@@ -410,7 +416,6 @@ static int handle_loop(struct smplwav *wav, char *cmd_str)
 	wav->markers[wav->nb_marker].name       = name;
 	wav->markers[wav->nb_marker].desc       = desc;
 	wav->markers[wav->nb_marker].length     = duration;
-	wav->markers[wav->nb_marker].has_length = 1;
 	wav->markers[wav->nb_marker].position   = start;
 	wav->nb_marker++;
 
@@ -442,7 +447,6 @@ static int handle_cue(struct smplwav *wav, char *cmd_str)
 	wav->markers[wav->nb_marker].name       = name;
 	wav->markers[wav->nb_marker].desc       = desc;
 	wav->markers[wav->nb_marker].length     = 0;
-	wav->markers[wav->nb_marker].has_length = 0;
 	wav->markers[wav->nb_marker].position   = start;
 	wav->nb_marker++;
 
@@ -506,46 +510,6 @@ static int handle_metastring(struct smplwav *wav, char *cmd_str)
 		return handle_smplpitch(wav, cmd_str);
 
 	fprintf(stderr, "Unknown set command: '%s'\n", command);
-	return -1;
-}
-
-static int read_entire_file(const char *filename, size_t *sz, unsigned char **buf)
-{
-	FILE *f = fopen(filename, "rb");
-	if (f == NULL) {
-		fprintf(stderr, "could not open file %s\n", filename);
-		return -1;
-	}
-
-	if (fseek(f, 0, SEEK_END) == 0) {
-		long fsz = ftell(f);
-		if (fsz >= 0) {
-			if (fseek(f, 0, SEEK_SET) == 0) {
-				unsigned char *fbuf;
-				fbuf = malloc(fsz+1);
-				if (fbuf != NULL) {
-					if (fread(fbuf, 1, fsz, f) == fsz) {
-						*sz = fsz;
-						*buf = fbuf;
-						return 0;
-					} else {
-						free(fbuf);
-						fprintf(stderr, "could not read %s\n", filename);
-					}
-				} else {
-					fprintf(stderr, "out of memory\n");
-				}
-			} else {
-				fprintf(stderr, "could not seek %s\n", filename);
-			}
-		} else {
-			fprintf(stderr, "could not ftell %s\n", filename);
-		}
-	} else {
-		fprintf(stderr, "could not seek eof on %s\n", filename);
-	}
-
-	fclose(f);
 	return -1;
 }
 
@@ -628,8 +592,7 @@ int main(int argc, char *argv[])
 	struct wavauth_options opts;
 	int err;
 	unsigned uerr;
-	size_t sz;
-	unsigned char *buf;
+	struct cop_filemap infile;
 	struct smplwav wav;
 	unsigned i;
 	char *stdinbuf = NULL;
@@ -644,23 +607,23 @@ int main(int argc, char *argv[])
 	if ((err = handle_options(&opts, argv + 1, argc - 1)) != 0)
 		return err;
 
-	if ((err = read_entire_file(opts.input_filename, &sz, &buf)) != 0)
+	if ((err = cop_filemap_open(&infile, opts.input_filename, COP_FILEMAP_FLAG_R)) != 0)
 		return err;
 
-	if (SMPLWAV_ERROR_CODE(uerr = smplwav_mount(&wav, buf, sz, opts.smplwav_flags))) {
+	if (SMPLWAV_ERROR_CODE(uerr = smplwav_mount(&wav, infile.ptr, infile.size, opts.smplwav_flags))) {
 		if (SMPLWAV_ERROR_CODE(uerr) == SMPLWAV_ERROR_SMPL_CUE_LOOP_CONFLICTS) {
 			fprintf(stderr, "%s has sampler loops that conflict with loops in the cue chunk. you must specify --prefer-smpl-loops or --prefer-cue-loops to load it. here are the details:\n", opts.input_filename);
 			fprintf(stderr, "common loops (position/duration):\n");
 			for (i = 0; i < wav.nb_marker; i++)
-				if (wav.markers[i].in_cue && wav.markers[i].in_smpl && wav.markers[i].has_length && wav.markers[i].length > 0)
+				if (wav.markers[i].in_cue && wav.markers[i].in_smpl && wav.markers[i].length > 0)
 					fprintf(stderr, "  %lu/%lu\n", (unsigned long)wav.markers[i].position, (unsigned long)wav.markers[i].length);
 			fprintf(stderr, "sampler loops (position/duration):\n");
 			for (i = 0; i < wav.nb_marker; i++)
-				if (!wav.markers[i].in_cue && wav.markers[i].in_smpl && wav.markers[i].has_length && wav.markers[i].length > 0)
+				if (!wav.markers[i].in_cue && wav.markers[i].in_smpl && wav.markers[i].length > 0)
 					fprintf(stderr, "  %lu/%lu\n", (unsigned long)wav.markers[i].position, (unsigned long)wav.markers[i].length);
 			fprintf(stderr, "cue loops (position/duration):\n");
 			for (i = 0; i < wav.nb_marker; i++)
-				if (wav.markers[i].in_cue && !wav.markers[i].in_smpl && wav.markers[i].has_length && wav.markers[i].length > 0)
+				if (wav.markers[i].in_cue && !wav.markers[i].in_smpl && wav.markers[i].length > 0)
 					fprintf(stderr, "  %lu/%lu\n", (unsigned long)wav.markers[i].position, (unsigned long)wav.markers[i].length);
 		} else {
 			fprintf(stderr, "failed to load '%s' sample: %u\n", opts.input_filename, uerr);
@@ -735,7 +698,7 @@ int main(int argc, char *argv[])
 	if (stdinbuf != NULL)
 		free(stdinbuf);
 
-	free(buf);
+	cop_filemap_close(&infile);
 
 	return err;
 }

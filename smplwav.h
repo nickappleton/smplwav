@@ -36,6 +36,7 @@ struct smplwav_marker {
 	uint_fast32_t         id;
 	int                   in_cue;
 	int                   in_smpl;
+	int                   has_ltxt;
 
 	/* From labl */
 	char                 *name;
@@ -45,7 +46,6 @@ struct smplwav_marker {
 
 	/* From ltxt or smpl. */
 	uint_fast32_t         length;
-	int                   has_length;
 
 	/* Sample offset this marker applies at. */
 	uint_fast32_t         position;

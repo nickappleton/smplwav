@@ -32,7 +32,7 @@ static struct smplwav_marker *get_new_marker(struct smplwav *wav)
 	m->name         = NULL;
 	m->desc         = NULL;
 	m->length       = 0;
-	m->has_length   = 0;
+	m->has_ltxt     = 0;
 	m->in_cue       = 0;
 	m->in_smpl      = 0;
 	m->position     = 0;
@@ -108,10 +108,10 @@ load_adtl
 		meta_size -= 4;
 
 		if (is_ltxt) {
-			if (marker->has_length)
+			if (marker->has_ltxt)
 				return SMPLWAV_ERROR_ADTL_DUPLICATES;
-			marker->has_length = 1;
-			marker->length     = cop_ld_ule32(meta_base);
+			marker->has_ltxt = 1;
+			marker->length   = cop_ld_ule32(meta_base);
 		} else {
 			if (!meta_size || meta_base[meta_size-1] != 0) {
 				warnings |= SMPLWAV_WARNING_ADTL_UNTERMINATED_STRINGS;
@@ -204,10 +204,9 @@ load_smpl
 
 			/* If the loop matches an existing loop, we can associate it
 			 * with this metadata item. */
-			if  (   (wav->markers[j].in_cue && wav->markers[j].position == start)
-				&&  (   (wav->markers[j].has_length && wav->markers[j].length == length)
-			        || !wav->markers[j].has_length
-			        )
+			if  (   (wav->markers[j].in_cue)
+			    &&  (wav->markers[j].position == start)
+			    &&  (!wav->markers[j].has_ltxt || wav->markers[j].length == length)
 			    )
 				break;
 		}
@@ -221,7 +220,6 @@ load_smpl
 		marker->position   = start;
 		marker->in_smpl    = 1;
 		marker->length     = length;
-		marker->has_length = 1;
 
 		smpl += 24;
 	}
@@ -253,7 +251,7 @@ check_and_finalise_markers
 		/* Check position is actually inside the audio region. */
 		if (wav->markers[i].position >= wav->data_frames)
 			return SMPLWAV_ERROR_MARKER_RANGE;
-		if (wav->markers[i].has_length && wav->markers[i].length > 0) {
+		if (wav->markers[i].length > 0) {
 			/* Check duration does not go outside audio region. */
 			if (wav->markers[i].position + wav->markers[i].length > wav->data_frames)
 				return SMPLWAV_ERROR_MARKER_RANGE;
@@ -278,7 +276,7 @@ check_and_finalise_markers
 	 * the markers belonging to the group we do not care about. */
 	if (flags & (SMPLWAV_MOUNT_PREFER_CUE_LOOPS | SMPLWAV_MOUNT_PREFER_SMPL_LOOPS)) {
 		for (i = 0, dest_idx = 0; i < wav->nb_marker; i++) {
-			int is_loop = wav->markers[i].has_length && wav->markers[i].length > 0;
+			int is_loop = wav->markers[i].length > 0;
 			if (is_loop && wav->markers[i].in_smpl && !wav->markers[i].in_cue && (flags & SMPLWAV_MOUNT_PREFER_CUE_LOOPS))
 				continue;
 			if (is_loop && !wav->markers[i].in_smpl && wav->markers[i].in_cue && (flags & SMPLWAV_MOUNT_PREFER_SMPL_LOOPS))
