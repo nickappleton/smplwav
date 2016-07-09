@@ -123,6 +123,9 @@
  * permit the load to continue selecting which items to preserve. */
 #define SMPLWAV_ERROR_SMPL_CUE_LOOP_CONFLICTS (15u)
 
+/* Use this macro to extract the error code from a return value. */
+#define SMPLWAV_ERROR_CODE(x) ((x) & 0xFFu)
+
 /* Warning Codes
  * -------------------------------------------------------------------------*/
 
@@ -144,9 +147,41 @@
  * was corrected. */
 #define SMPLWAV_WARNING_SMPL_CUE_LOOP_CONFLICTS   (0x800u)
 
-/* Use this macro to extract the error code from a return value. */
-#define SMPLWAV_ERROR_CODE(x) ((x) & 0xFFu)
+/* Sample Mounting API
+ * -------------------------------------------------------------------------*/
 
+/* This function populates the given wave structure with the metadata provided
+ * in the given buffer (which is assumed to be a memory view of a wave file).
+ *
+ * Any information in the structure before the function is called is ignored
+ * and will be overwritten.
+ *
+ * Pointers in the wav structure (which are always string pointers) will point
+ * directly into the supplied buffer argument. This means that the lifetime
+ * of the pointers in wav is the same as the lifetime of the buf argument and
+ * modifications to buf may modify data being pointed to. Be careful of this
+ * if you intend on using the smplwav_serialise() API - you must NOT use the
+ * same buffer for serialisation!
+ *
+ * Although the buffer is not marked const (which is deliberate), the buffer
+ * will NOT be modified. The reason for this is that the pointers in the wav
+ * structure are not const (as we you want to write to them).
+ *
+ * No memory is dynamically allocated by this function and there is nothing
+ * to cleanup on failure or success.
+ *
+ * Flags may be any combination of the SMPLWAV_MOUNT_* values with one
+ * exception. If SMPLWAV_MOUNT_PREFER_SMPL_LOOPS is specified,
+ * SMPLWAV_MOUNT_PREFER_CUE_LOOPS must not be specified and vice versa.
+ *
+ * The return value is an error code and possibly a warning bitfield. Use
+ * SMPLWAV_ERROR_CODE() to extract the error code from the return value - if
+ * the value is non-zero, something went wrong and the wav structure should be
+ * treated as uninitialised unless the documentation for the error code
+ * explicitly states otherwise. If the extracted error code is zero but the
+ * return value was non-zero, one or more compromises were made to load the
+ * wav structure which may or may-not be a problem. The warnings are a mask
+ * of SMPLWAV_WARNING_* flags in the returned value. */
 unsigned smplwav_mount(struct smplwav *wav, unsigned char *buf, size_t bufsz, unsigned flags);
 
 #endif /* SMPLWAV_MOUNT_H */
