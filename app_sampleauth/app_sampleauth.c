@@ -156,6 +156,10 @@ void printstr(const char *s)
 				printf("\\\"");
 			} else if (*s == '\\') {
 				printf("\\\\");
+			} else if (*s == '\r') {
+				printf("\\r");
+			} else if (*s == '\n') {
+				printf("\\n");
 			} else {
 				printf("%c", *s);
 			}
@@ -306,6 +310,9 @@ static int expect_string(char **output_str, char **cmd_str)
 				break;
 			case 'n':
 				c = '\n';
+				break;
+			case 'r':
+				c = '\r';
 				break;
 			case '\0':
 			default:

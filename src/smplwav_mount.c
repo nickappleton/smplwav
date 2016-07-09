@@ -270,28 +270,28 @@ check_and_finalise_markers
 
 	/* Were there both independent sampler loops or independent cue
 	 * loops? */
-	if (nb_smpl_only_loops && nb_cue_only_loops) {
-		/* If the caller has not specified a flag for what do do in this
-		 * situation, print some information and fail. Otherwise, delete
-		 * the markers belonging to the group we do not care about. */
-		if (flags & (SMPLWAV_MOUNT_PREFER_CUE_LOOPS | SMPLWAV_MOUNT_PREFER_SMPL_LOOPS)) {
-			for (i = 0, dest_idx = 0; i < wav->nb_marker; i++) {
-				int is_loop = wav->markers[i].has_length && wav->markers[i].length > 0;
-				if (is_loop && wav->markers[i].in_smpl && !wav->markers[i].in_cue && (flags & SMPLWAV_MOUNT_PREFER_CUE_LOOPS))
-					continue;
-				if (is_loop && !wav->markers[i].in_smpl && wav->markers[i].in_cue && (flags & SMPLWAV_MOUNT_PREFER_SMPL_LOOPS))
-					continue;
-				if (i != dest_idx)
-					wav->markers[dest_idx] = wav->markers[i];
-				dest_idx++;
-			}
-			wav->nb_marker = dest_idx;
-		} else {
-			return SMPLWAV_ERROR_SMPL_CUE_LOOP_CONFLICTS;
+	if (!nb_smpl_only_loops || !nb_cue_only_loops)
+		return 0;
+
+	/* If the caller has not specified a flag for what do do in this
+	 * situation, print some information and fail. Otherwise, delete
+	 * the markers belonging to the group we do not care about. */
+	if (flags & (SMPLWAV_MOUNT_PREFER_CUE_LOOPS | SMPLWAV_MOUNT_PREFER_SMPL_LOOPS)) {
+		for (i = 0, dest_idx = 0; i < wav->nb_marker; i++) {
+			int is_loop = wav->markers[i].has_length && wav->markers[i].length > 0;
+			if (is_loop && wav->markers[i].in_smpl && !wav->markers[i].in_cue && (flags & SMPLWAV_MOUNT_PREFER_CUE_LOOPS))
+				continue;
+			if (is_loop && !wav->markers[i].in_smpl && wav->markers[i].in_cue && (flags & SMPLWAV_MOUNT_PREFER_SMPL_LOOPS))
+				continue;
+			if (i != dest_idx)
+				wav->markers[dest_idx] = wav->markers[i];
+			dest_idx++;
 		}
+		wav->nb_marker = dest_idx;
+		return SMPLWAV_WARNING_SMPL_CUE_LOOP_CONFLICTS;
 	}
 
-	return 0;
+	return SMPLWAV_ERROR_SMPL_CUE_LOOP_CONFLICTS;
 }
 
 static unsigned load_sample_format(struct smplwav_format *format, unsigned char *fmt_ptr, size_t fmt_sz)

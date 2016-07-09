@@ -139,6 +139,11 @@
  * strings will be ignored. */
 #define SMPLWAV_WARNING_INFO_UNTERMINATED_STRINGS (0x400u)
 
+/* See the description for SMPLWAV_ERROR_SMPL_CUE_LOOP_CONFLICTS. This flag
+ * is set when one of the SMPLWAV_MOUNT_PREFER_* flags is given and the sample
+ * was corrected. */
+#define SMPLWAV_WARNING_SMPL_CUE_LOOP_CONFLICTS   (0x800u)
+
 /* Use this macro to extract the error code from a return value. */
 #define SMPLWAV_ERROR_CODE(x) ((x) & 0xFFu)
 
