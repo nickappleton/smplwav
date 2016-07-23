@@ -18,6 +18,10 @@ See the API headers for more information.
 
 ## Bundled Appliations
 
-The library comes with an application for authoring wave samples (found in the app_sampleauth directory) to be shipped in sample sets.
+### app_samplauth
 
-The application can set and remove metadata for a sample and can be used to diagnose and correct problems with samples before they are released.
+Is an application for repairing/authoring wave samples to be shipped in sample sets. It can set and remove metadata for a sample and can be used to diagnose and correct problems with samples before they are released.
+
+### app_autoloop
+
+Is a tool for roughing in loops (and probably releases markers at some point) in samples. I am still in the middle of developing this tool.
