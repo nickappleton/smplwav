@@ -21,7 +21,7 @@
 #include <stdlib.h>
 #include "smplwav/smplwav_convert.h"
 
-void smplwav_convert_deinterleave_floats(float *dest, size_t dest_stride, const void *src, unsigned length, unsigned nb_channels, int input_format)
+void smplwav_convert_deinterleave_floats(float *dest, size_t dest_stride, const unsigned char *src, unsigned length, unsigned nb_channels, int input_format)
 {
 	if (input_format == SMPLWAV_FORMAT_PCM16)
 	{
@@ -32,10 +32,10 @@ void smplwav_convert_deinterleave_floats(float *dest, size_t dest_stride, const 
 			for (j = 0; j < length; j++) {
 				int_fast32_t s1;
 				int_fast32_t s2;
-				s1 =             ((const unsigned char *)src)[4*j+1];
-				s1 = (s1 << 8) | ((const unsigned char *)src)[4*j+0];
-				s2 =             ((const unsigned char *)src)[4*j+3];
-				s2 = (s2 << 8) | ((const unsigned char *)src)[4*j+2];
+				s1 =             src[4*j+1];
+				s1 = (s1 << 8) | src[4*j+0];
+				s2 =             src[4*j+3];
+				s2 = (s2 << 8) | src[4*j+2];
 				if (s1 >= 32768)
 					s1 -= 65536;
 				if (s2 >= 32768)
@@ -51,8 +51,8 @@ void smplwav_convert_deinterleave_floats(float *dest, size_t dest_stride, const 
 				for (j = 0; j < length; j++) {
 					uint_fast32_t s;
 					int_fast32_t t;
-					s =            ((const unsigned char *)src)[2*(i+nb_channels*j)+1];
-					s = (s << 8) | ((const unsigned char *)src)[2*(i+nb_channels*j)+0];
+					s =            src[2*(i+nb_channels*j)+1];
+					s = (s << 8) | src[2*(i+nb_channels*j)+0];
 					t = (s & 0x8000u)   ? -(int_fast32_t)(((~s) & 0x7FFFu) + 1) : (int_fast32_t)s;
 					out[j] = t * (256.0f / (float)0x800000);
 				}
@@ -66,8 +66,8 @@ void smplwav_convert_deinterleave_floats(float *dest, size_t dest_stride, const 
 			float *out1 = dest;
 			float *out2 = out1 + dest_stride;
 			for (i = 0; i < length; i++, src += 6) {
-				int_fast32_t t1 = cop_ld_sle24(((const unsigned char *)src) + 0);
-				int_fast32_t t2 = cop_ld_sle24(((const unsigned char *)src) + 3);
+				int_fast32_t t1 = cop_ld_sle24(src + 0);
+				int_fast32_t t2 = cop_ld_sle24(src + 3);
 				out1[i]         = t1 * (1.0f / (float)0x800000);
 				out2[i]         = t2 * (1.0f / (float)0x800000);
 			}
@@ -76,7 +76,7 @@ void smplwav_convert_deinterleave_floats(float *dest, size_t dest_stride, const 
 			for (i = 0; i < nb_channels; i++, out += dest_stride) {
 				unsigned j;
 				for (j = 0; j < length; j++) {
-					out[j] = cop_ld_sle24(((const unsigned char *)src) + 3 * (i + nb_channels * j)) * (1.0f / (float)0x800000);
+					out[j] = cop_ld_sle24(src + 3 * (i + nb_channels * j)) * (1.0f / (float)0x800000);
 				}
 			}
 		}

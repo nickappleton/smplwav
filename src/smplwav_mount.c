@@ -370,7 +370,7 @@ static unsigned load_info(char **infoset, unsigned char *buf, size_t sz)
 		base  = (char *)buf;
 
 		if (cksz >= sz) {
-			cksz = sz;
+			cksz = (uint_fast32_t)sz; /* cast is safe as sz is less than cksz from the conditional */
 			sz   = 0;
 		} else {
 			buf += cksz + (cksz & 1);

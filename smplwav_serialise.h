@@ -24,8 +24,9 @@
 #include "smplwav.h"
 
 /* Serialises the data in wav into the given buffer. If buf is NULL, no data
- * will be written. The size argument will always be updated to reflect how
- * much data will be/was written into the buffer.
+ * will be written. The size argument will be updated to reflect how much
+ * data will be/was written into the buffer as long as the function did not
+ * fail.
  *
  * If store_cue_loops is non-zero, cue points and labeled text chunks for the
  * loops will be written.
@@ -34,7 +35,10 @@
  * the list to NULL to suppress writing them.
  *
  * It is undefined for any of the values in the wav_sample structure to be
- * invalid. */
-void smplwav_serialise(const struct smplwav *wav, unsigned char *buf, size_t *size, int store_cue_loops);
+ * invalid.
+ *
+ * The function returns zero on success or non-zero if the wave is impossible
+ * to serialise (a chunk size would have exceeded the hard 32-bit limit). */
+int smplwav_serialise(const struct smplwav *wav, unsigned char *buf, size_t *size, int store_cue_loops);
 
 #endif /* SMPLWAV_SERIALISE_H */

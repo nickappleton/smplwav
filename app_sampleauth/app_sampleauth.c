@@ -211,16 +211,21 @@ static int dump_sample(const struct smplwav *wav, const char *filename, int stor
 	FILE *f;
 
 	/* Find size of entire wave file then allocate memory for it. */
-	smplwav_serialise(wav, NULL, &sz, store_cue_loops);
+	if (smplwav_serialise(wav, NULL, &sz, store_cue_loops)) {
+		fprintf(stderr, "can not serialise the updated waveform\n");
+		return -1;
+	}
 	if ((data = malloc(sz)) == NULL) {
 		fprintf(stderr, "out of memory\n");
 		return -1;
 	}
 
 	/* Serialise the wave file to memory. */
-	smplwav_serialise(wav, data, &sz2, store_cue_loops);
+	err = smplwav_serialise(wav, data, &sz2, store_cue_loops);
 
-	/* serialise should always return the same size that was queried. */
+	/* Serialise should always be successful if the size query was successful
+	 * and the returned size should be identical to what was queried. */
+	assert(err == 0);
 	assert(sz2 == sz);
 
 	/* Open the output file and write the entire buffer to it. */
@@ -237,7 +242,7 @@ static int dump_sample(const struct smplwav *wav, const char *filename, int stor
 
 	free(data);
 
-	return 0;
+	return err;
 }
 
 static int is_whitespace(char c)
@@ -408,6 +413,16 @@ static int handle_loop(struct smplwav *wav, char *cmd_str)
 		return -1;
 	}
 
+	if (start > wav->data_frames) {
+		fprintf(stderr, "the start of the loop was beyond the end of the sample\n");
+		return -1;
+	}
+
+	if (duration > 0xFFFFFFFF || start + duration > wav->data_frames) {
+		fprintf(stderr, "the loop duration went beyond the end of the sample\n");
+		return -1;
+	}
+
 	if (wav->nb_marker >= SMPLWAV_MAX_MARKERS) {
 		fprintf(stderr, "cannot add another loop - too much marker metadata\n");
 		return -1;
@@ -415,8 +430,8 @@ static int handle_loop(struct smplwav *wav, char *cmd_str)
 
 	wav->markers[wav->nb_marker].name       = name;
 	wav->markers[wav->nb_marker].desc       = desc;
-	wav->markers[wav->nb_marker].length     = duration;
-	wav->markers[wav->nb_marker].position   = start;
+	wav->markers[wav->nb_marker].length     = (uint_fast32_t)duration;
+	wav->markers[wav->nb_marker].position   = (uint_fast32_t)start;
 	wav->nb_marker++;
 
 	return 0;
@@ -439,6 +454,11 @@ static int handle_cue(struct smplwav *wav, char *cmd_str)
 		return -1;
 	}
 
+	if (start > wav->data_frames) {
+		fprintf(stderr, "the cue marker position was beyond the end of the sample\n");
+		return -1;
+	}
+
 	if (wav->nb_marker >= SMPLWAV_MAX_MARKERS) {
 		fprintf(stderr, "cannot add another loop - too much marker metadata\n");
 		return -1;
@@ -447,7 +467,7 @@ static int handle_cue(struct smplwav *wav, char *cmd_str)
 	wav->markers[wav->nb_marker].name       = name;
 	wav->markers[wav->nb_marker].desc       = desc;
 	wav->markers[wav->nb_marker].length     = 0;
-	wav->markers[wav->nb_marker].position   = start;
+	wav->markers[wav->nb_marker].position   = (uint_fast32_t)start;
 	wav->nb_marker++;
 
 	return 0;

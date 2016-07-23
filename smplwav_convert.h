@@ -35,12 +35,12 @@
  * of "dest" between "length" and "dest_stride" will not be initialised. */
 void
 smplwav_convert_deinterleave_floats
-	(float      *dest
-	,size_t      dest_stride
-	,const void *src
-	,unsigned    length
-	,unsigned    nb_channels
-	,int         input_format
+	(float               *dest
+	,size_t               dest_stride
+	,const unsigned char *src
+	,unsigned             length
+	,unsigned             nb_channels
+	,int                  input_format
 	);
 
 #endif /* SMPLWAV_CONVERT_H */
