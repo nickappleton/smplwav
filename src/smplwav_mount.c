@@ -85,7 +85,7 @@ load_adtl
 			return warnings | SMPLWAV_ERROR_ADTL_INVALID;
 
 		adtl     += cksz;
-		adtl_len -= cksz;
+		adtl_len -= (size_t)cksz;
 
 		/* Make sure this is a chunk we can actually understand. If there
 		 * are chunks in the adtl list which are unknown to us, we could

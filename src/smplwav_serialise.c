@@ -240,7 +240,7 @@ static void serialise_blob(uint_fast32_t id, const unsigned char *ckdata, uint_f
 		buf += *size;
 		cop_st_ule32(buf, id);
 		cop_st_ule32(buf + 4, (uint_fast32_t)cksize);
-		memcpy(buf + 8, ckdata, cksize);
+		memcpy(buf + 8, ckdata, (size_t)cksize);
 		if (cksize & 1)
 			buf[8+cksize] = 0;
 	}
