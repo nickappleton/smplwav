@@ -1,3 +1,23 @@
+/* Copyright (c) 2016 Nick Appleton
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE. */
+
 #include <stdio.h>
 #include <math.h>
 #include "cop/cop_vec.h"
@@ -8,8 +28,8 @@
 #include "smplwav/smplwav_convert.h"
 
 #define SHORT_WINDOW_LENGTH (5)
-#define LONG_WINDOW_LENGTH  (2047) /* ~ 43 ms at 48000 */
-#define NB_XCDATA           (3000)
+#define LONG_WINDOW_LENGTH  (4095) /* ~ 43 ms at 48000 */
+#define NB_XCDATA           (256)
 
 struct scaninfo {
 	uint_fast32_t position;
@@ -126,6 +146,7 @@ int main(int argc, char *argv[])
 	uint_fast32_t       chanstride;
 	struct scaninfo    *scinfo;
 	float              *tmp_buf;
+	float              *square_buf;
 	uint_fast32_t       i, j;
 	uint_fast32_t       nb_scinfo;
 	uint_fast32_t       nb_xc;
@@ -155,11 +176,12 @@ int main(int argc, char *argv[])
 
 	/* Allocate memory for the various awful things this program does. */
 	chanstride = ((sample.data_frames + VLF_WIDTH - 1) / VLF_WIDTH) * VLF_WIDTH;
-	if  (   (wave_data = aalloc_align_alloc(&mem, sizeof(float) * chanstride * sample.format.channels, 32)) == NULL
-		||  (tmp_buf   = aalloc_align_alloc(&mem, sizeof(float) * sample.data_frames, 32)) == NULL
-		||  (scinfo    = aalloc_align_alloc(&mem, sizeof(*scinfo) * sample.data_frames * 2, 32)) == NULL
-		||  (xcbuf     = aalloc_align_alloc(&mem, sizeof(*xcbuf) * (NB_XCDATA * (NB_XCDATA + 1) / 2), 32)) == NULL
-		||  (xcscratch = aalloc_align_alloc(&mem, sizeof(*xcscratch) * (NB_XCDATA * (NB_XCDATA + 1) / 2), 32)) == NULL
+	if  (   (wave_data  = aalloc_align_alloc(&mem, sizeof(float) * chanstride * sample.format.channels, 32)) == NULL
+		||  (tmp_buf    = aalloc_align_alloc(&mem, sizeof(float) * sample.data_frames, 32)) == NULL
+		||  (square_buf = aalloc_align_alloc(&mem, sizeof(float) * sample.data_frames, 32)) == NULL
+		||  (scinfo     = aalloc_align_alloc(&mem, sizeof(*scinfo) * sample.data_frames * 2, 32)) == NULL
+		||  (xcbuf      = aalloc_align_alloc(&mem, sizeof(*xcbuf) * (NB_XCDATA * (NB_XCDATA + 1) / 2), 32)) == NULL
+		||  (xcscratch  = aalloc_align_alloc(&mem, sizeof(*xcscratch) * (NB_XCDATA * (NB_XCDATA + 1) / 2), 32)) == NULL
 		) {
 		cop_filemap_close(&infile);
 		aalloc_free(&mem);
@@ -170,45 +192,53 @@ int main(int argc, char *argv[])
 	/* Convert the wave data into floating point. */
 	smplwav_convert_deinterleave_floats(wave_data, chanstride, sample.data, sample.data_frames, sample.format.channels, sample.format.format);
 
-	/* Build the very short-term power info. This is effectively the power of
-	 * a 5-sample window of the input. */
+	/* For every sample, sum the squares of each channel into square_buf. */
 	if (sample.format.channels == 2) {
 		float *left  = wave_data;
 		float *right = wave_data + chanstride;
-		tmp_buf[0] = 0.0f;
-		tmp_buf[1] = 0.0f;
-		for (i = 0; i + (SHORT_WINDOW_LENGTH-1) < sample.data_frames; i++, left++, right++) {
-			float rms3;
-#if SHORT_WINDOW_LENGTH == 5
-			rms3  = left[0] * left[0]   + left[1] * left[1]   + left[2] * left[2] + left[3] * left[3] + left[4] * left[4];
-			rms3 += right[0] * right[0] + right[1] * right[1] + right[2] * right[2] + right[3] * right[3] + right[4] * right[4];
-#else
-#error "reimplement this if you change SHORT_WINDOW_LENGTH"
-#endif
-			tmp_buf[i+2] = rms3;
+		for (i = 0; i < sample.data_frames; i++) {
+			square_buf[i] = left[i] * left[i] + right[i] * right[i];
 		}
-		tmp_buf[i+2] = 0.0f;
-		tmp_buf[i+3] = 0.0f;
 	} else {
+		float *chptr = wave_data;
+		unsigned ch;
+		for (i = 0; i < sample.data_frames; i++) {
+			square_buf[i] = chptr[i] * chptr[i];
+		}
+		for (ch = 1; ch < sample.format.channels; ch++) {
+			chptr += chanstride;
+			for (i = 0; i < sample.data_frames; i++) {
+				square_buf[i] += chptr[i] * chptr[i];
+			}
+		}
+	}
+
+	/* Build the very short-term power info. This is effectively the power of
+	 * a SHORT_WINDOW_LENGTH window of the input. It is meant to be almost
+	 * the instantaneous power. */
+	{
+#if SHORT_WINDOW_LENGTH == 5
+		float a, b, c, d, e;
+		a = square_buf[0];
+		b = square_buf[1];
+		c = square_buf[2];
+		d = square_buf[3];
+		e = square_buf[4];
 		tmp_buf[0] = 0.0f;
 		tmp_buf[1] = 0.0f;
-		for (i = 0; i + (SHORT_WINDOW_LENGTH-1) < sample.data_frames; i++) {
-			float rms3;
-			float *chptr = wave_data;
-			unsigned ch;
-#if SHORT_WINDOW_LENGTH == 5
-			rms3  = chptr[0] * chptr[0] + chptr[1] * chptr[1] + chptr[2] * chptr[2] + chptr[3] * chptr[3] + chptr[4] * chptr[4];
-			for (ch = 1; ch < sample.format.channels; ch++) {
-				chptr += chanstride;
-				rms3  += chptr[0] * chptr[0] + chptr[1] * chptr[1] + chptr[2] * chptr[2] + chptr[3] * chptr[3] + chptr[4] * chptr[4];
-			}
-#else
-#error "reimplement this if you change SHORT_WINDOW_LENGTH"
-#endif
-			tmp_buf[i+2] = rms3;
+		for (i = 0; i + 5 < sample.data_frames; i++) {
+			tmp_buf[i+2] = a + b + c + d + e;
+			a = b;
+			b = c;
+			c = d;
+			d = e;
+			e = square_buf[i+5];
 		}
 		tmp_buf[i+2] = 0.0f;
 		tmp_buf[i+3] = 0.0f;
+#else
+#error "reimplement this if you change SHORT_WINDOW_LENGTH"
+#endif
 	}
 
 	/* Find all of the peaks in the short-term power window. The positions and
@@ -243,7 +273,7 @@ int main(int argc, char *argv[])
 		float thr = 0.0f;
 		for (i = 0; i < nb_scinfo / 2; i++) 
 			thr += scinfo[i].rms3;
-		thr *= 0.7071f / (nb_scinfo / 2);
+		thr *= 0.5f / (nb_scinfo / 2);
 		while (nb_scinfo && scinfo[nb_scinfo-1].rms3 < thr)
 			nb_scinfo--;
 	}
@@ -270,15 +300,13 @@ int main(int argc, char *argv[])
 
 		/* Get long RMS power levels. */
 		for (i = 0; i < nb_xcd; i++) {
-			unsigned ch;
 			float acc = 0.0f;
-			float *wd = wave_data;
-			for (ch = 0; ch < sample.format.channels; ch++, wd += chanstride) {
-				unsigned k;
-				float *ps1 = wd + scinfo[start_range+i].position - (LONG_WINDOW_LENGTH-1)/2;
-				for (k = 0; k < LONG_WINDOW_LENGTH; k++)
-					acc += ps1[k] * ps1[k];
-			}
+			float *wd = square_buf + scinfo[start_range+i].position - (LONG_WINDOW_LENGTH-1)/2;
+			unsigned k;
+
+			for (k = 0; k < LONG_WINDOW_LENGTH; k++)
+				acc += wd[k];
+
 			scinfo[start_range+i].rms_long = acc;
 		}
 
