@@ -627,8 +627,10 @@ int main(int argc, char *argv[])
 	if ((err = handle_options(&opts, argv + 1, argc - 1)) != 0)
 		return err;
 
-	if ((err = cop_filemap_open(&infile, opts.input_filename, COP_FILEMAP_FLAG_R)) != 0)
+	if ((err = cop_filemap_open(&infile, opts.input_filename, COP_FILEMAP_FLAG_R)) != 0) {
+		fprintf(stderr, "could not open %s\n", opts.input_filename);
 		return err;
+	}
 
 	if (SMPLWAV_ERROR_CODE(uerr = smplwav_mount(&wav, infile.ptr, infile.size, opts.smplwav_flags))) {
 		if (SMPLWAV_ERROR_CODE(uerr) == SMPLWAV_ERROR_SMPL_CUE_LOOP_CONFLICTS) {
