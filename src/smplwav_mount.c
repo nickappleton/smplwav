@@ -20,6 +20,7 @@
 
 #include "smplwav/smplwav_mount.h"
 #include "cop/cop_conversions.h"
+#include "smplwav_internal.h"
 #include <string.h>
 
 static struct smplwav_marker *get_new_marker(struct smplwav *wav)
@@ -383,7 +384,10 @@ static unsigned load_info(char **infoset, unsigned char *buf, size_t sz)
 		}
 
 		for (i = 0; i < SMPLWAV_NB_INFO_TAGS; i++) {
-			if (SMPLWAV_INFO_TAGS[i] == ckid) {
+#ifndef NDEBUG
+			assert(SMPLWAV_INFO_ITEMS[i].index == i);
+#endif
+			if (SMPLWAV_INFO_ITEMS[i].fourccid == ckid) {
 				infoset[i] = base;
 				break;
 			}

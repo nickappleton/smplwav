@@ -64,42 +64,46 @@ struct smplwav_format {
 	uint_fast16_t bits_per_sample;
 };
 
-#define SMPLWAV_RIFF_ID(c1, c2, c3, c4) \
-	(   ((uint_fast32_t)(c1)) \
-	|   (((uint_fast32_t)(c2)) << 8) \
-	|   (((uint_fast32_t)(c3)) << 16) \
-	|   (((uint_fast32_t)(c4)) << 24) \
-	)
-
 /* See "Multimedia Programming Interface and Data Specifications 1.0" for
  * information about how these textual fields should look. */
-static COP_ATTR_UNUSED uint_fast32_t SMPLWAV_INFO_TAGS[] =
-{	SMPLWAV_RIFF_ID('I', 'A', 'R', 'L') /* Archival Location */
-,	SMPLWAV_RIFF_ID('I', 'A', 'R', 'T') /* Artist */
-,	SMPLWAV_RIFF_ID('I', 'C', 'M', 'S') /* Commissioned */
-,	SMPLWAV_RIFF_ID('I', 'C', 'M', 'T') /* Comments */
-,	SMPLWAV_RIFF_ID('I', 'C', 'O', 'P') /* Copyright */
-,	SMPLWAV_RIFF_ID('I', 'C', 'R', 'D') /* Creation Date */
-,	SMPLWAV_RIFF_ID('I', 'C', 'R', 'P') /* Cropped */
-,	SMPLWAV_RIFF_ID('I', 'D', 'I', 'M') /* Dimensions */
-,	SMPLWAV_RIFF_ID('I', 'D', 'P', 'I') /* Dots Per Inch */
-,	SMPLWAV_RIFF_ID('I', 'E', 'N', 'G') /* Engineer */
-,	SMPLWAV_RIFF_ID('I', 'G', 'N', 'R') /* Genre */
-,	SMPLWAV_RIFF_ID('I', 'K', 'E', 'Y') /* Keywords */
-,	SMPLWAV_RIFF_ID('I', 'L', 'G', 'T') /* Lightness */
-,	SMPLWAV_RIFF_ID('I', 'M', 'E', 'D') /* Medium */
-,	SMPLWAV_RIFF_ID('I', 'N', 'A', 'M') /* Name */
-,	SMPLWAV_RIFF_ID('I', 'P', 'L', 'T') /* Palette Setting */
-,	SMPLWAV_RIFF_ID('I', 'P', 'R', 'D') /* Product */
-,	SMPLWAV_RIFF_ID('I', 'S', 'B', 'J') /* Subject */
-,	SMPLWAV_RIFF_ID('I', 'S', 'F', 'T') /* Software */
-,	SMPLWAV_RIFF_ID('I', 'S', 'H', 'P') /* Sharpness */
-,	SMPLWAV_RIFF_ID('I', 'S', 'R', 'C') /* Source */
-,	SMPLWAV_RIFF_ID('I', 'S', 'R', 'F') /* Source Form */
-,	SMPLWAV_RIFF_ID('I', 'T', 'C', 'H') /* Technician */
-};
+#define SMPLWAV_INFO_IARL (0)  /* Archival Location */
+#define SMPLWAV_INFO_IART (1)  /* Artist */
+#define SMPLWAV_INFO_ICMS (2)  /* Commissioned */
+#define SMPLWAV_INFO_ICMT (3)  /* Comments */
+#define SMPLWAV_INFO_ICOP (4)  /* Copyright */
+#define SMPLWAV_INFO_ICRD (5)  /* Creation Date */
+#define SMPLWAV_INFO_ICRP (6)  /* Cropped */
+#define SMPLWAV_INFO_IDIM (7)  /* Dimensions */
+#define SMPLWAV_INFO_IDPI (8)  /* Dots Per Inch */
+#define SMPLWAV_INFO_IENG (9)  /* Engineer */
+#define SMPLWAV_INFO_IGNR (10) /* Genre */
+#define SMPLWAV_INFO_IKEY (11) /* Keywords */
+#define SMPLWAV_INFO_ILGT (12) /* Lightness */
+#define SMPLWAV_INFO_IMED (13) /* Medium */
+#define SMPLWAV_INFO_INAM (14) /* Name */
+#define SMPLWAV_INFO_IPLT (15) /* Palette Setting */
+#define SMPLWAV_INFO_IPRD (16) /* Product */
+#define SMPLWAV_INFO_ISBJ (17) /* Subject */
+#define SMPLWAV_INFO_ISFT (18) /* Software */
+#define SMPLWAV_INFO_ISHP (19) /* Sharpness */
+#define SMPLWAV_INFO_ISRC (20) /* Source */
+#define SMPLWAV_INFO_ISRF (21) /* Source Form */
+#define SMPLWAV_INFO_ITCH (22) /* Technician */
 
-#define SMPLWAV_NB_INFO_TAGS (sizeof(SMPLWAV_INFO_TAGS) / sizeof(SMPLWAV_INFO_TAGS[0]))
+#define SMPLWAV_NB_INFO_TAGS (23)
+
+/* This function takes an integer less than SMPLWAV_NB_INFO_TAGS and returns
+ * the fourcc which corresponds to that item as a string. i.e.
+ *   smplwav_info_index_to_string(SMPLWAV_INFO_ICRD) returns "ICRD"
+ */
+const char *smplwav_info_index_to_string(unsigned index);
+
+/* This function takes a fourcc string and returns the index the info tag
+ * index it corresponds to. i.e.
+ *   smplwav_info_string_to_index("ICRD") returns SMPLWAV_INFO_ICRD
+ * Unsupported values return a negative result.
+ * It is undefined for the string to not be 4 characters. */
+int smplwav_info_string_to_index(const char *fourcc);
 
 struct smplwav_extra_ck {
 	uint_fast32_t     id;

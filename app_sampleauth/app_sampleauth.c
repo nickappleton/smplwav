@@ -178,8 +178,9 @@ static void dump_metadata(const struct smplwav *wav)
 
 	for (i = 0; i < SMPLWAV_NB_INFO_TAGS; i++) {
 		if (wav->info[i] != NULL) {
-			uint_fast32_t id = SMPLWAV_INFO_TAGS[i];
-			printf("info-%c%c%c%c ", id & 0xFF, (id >> 8) & 0xFF, (id >> 16) & 0xFF, (id >> 24) & 0xFF); printstr(wav->info[i]); printf("\n");
+			printf("info-%s ", smplwav_info_index_to_string(i));
+			printstr(wav->info[i]);
+			printf("\n");
 		}
 	}
 
@@ -489,21 +490,16 @@ static int handle_smplpitch(struct smplwav *wav, char *cmd_str)
 
 static int handle_info(struct smplwav *wav, char *ck, char *cmd_str)
 {
-	if (strlen(ck) == 4) {
-		unsigned i;
-		uint_fast32_t id = ((uint_fast32_t)ck[0]) | (((uint_fast32_t)ck[1]) << 8) | (((uint_fast32_t)ck[2]) << 16) | (((uint_fast32_t)ck[3]) << 24);
-		for (i = 0; i < SMPLWAV_NB_INFO_TAGS; i++) {
-			if (id == SMPLWAV_INFO_TAGS[i]) {
-				if (expect_null_or_str(&(wav->info[i]), &cmd_str) || expect_end_of_args(&cmd_str)) {
-					fprintf(stderr, "info commands requires exactly one string or 'null' argument\n");
-					return -1;
-				}
-				return 0;
-			}
-		}
+	int idx;
+	if (strlen(ck) != 4 || (idx = smplwav_info_string_to_index(ck)) < 0) {
+		fprintf(stderr, "'%s' is an unsupported INFO chunk\n", ck);
+		return -1;
 	}
-	fprintf(stderr, "'%s' is an unsupported INFO chunk\n", ck);
-	return -1;
+	if (expect_null_or_str(&(wav->info[idx]), &cmd_str) || expect_end_of_args(&cmd_str)) {
+		fprintf(stderr, "info commands requires exactly one string or 'null' argument\n");
+		return -1;
+	}
+	return 0;
 }
 
 static int handle_metastring(struct smplwav *wav, char *cmd_str)

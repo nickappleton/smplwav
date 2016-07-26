@@ -19,6 +19,7 @@
  * DEALINGS IN THE SOFTWARE. */
 
 #include "smplwav/smplwav_serialise.h"
+#include "smplwav_internal.h"
 #include "cop/cop_conversions.h"
 #include <string.h>
 #include <assert.h>
@@ -276,7 +277,10 @@ static int serialise_info(char * const *infoset, unsigned char *buf, uint_fast64
 	unsigned i;
 
 	for (i = 0; i < SMPLWAV_NB_INFO_TAGS; i++) {
-		if (serialise_zstrblob(SMPLWAV_INFO_TAGS[i], infoset[i], buf, &new_sz))
+#ifndef NDEBUG
+		assert(SMPLWAV_INFO_ITEMS[i].index == i);
+#endif
+		if (serialise_zstrblob(SMPLWAV_INFO_ITEMS[i].fourccid, infoset[i], buf, &new_sz))
 			return 1;
 		if (new_sz - old_sz - 8 > 0xFFFFFFFF)
 			return 1;
