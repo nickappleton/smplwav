@@ -6,15 +6,26 @@ if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release")
 endif()
 
-project(app_sampleauth)
-
-if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -mmacosx-version-min=10.6")
-  set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=address")
-  set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -g")
+if (NOT DEFINED ENV{MACOSX_DEPLOYMENT_TARGET})
+  set(CMAKE_OSX_DEPLOYMENT_TARGET "10.6")
+endif()
+if (CMAKE_BUILD_TYPE STREQUAL "Debug" AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address")
+endif()
+if (CMAKE_BUILD_TYPE STREQUAL "Release" AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g")
 endif()
 
+project(app_sampleauth)
+
 add_executable(sampleauth app_sampleauth.c)
+
+if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+  set_property(TARGET sampleauth APPEND_STRING PROPERTY COMPILE_FLAGS " /W3")
+else()
+  set_property(TARGET sampleauth APPEND_STRING PROPERTY COMPILE_FLAGS " -Wall")
+endif()
+
 target_include_directories(sampleauth PRIVATE "../..")
 target_link_libraries(sampleauth smplwav)
 

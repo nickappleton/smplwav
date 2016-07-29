@@ -10,5 +10,13 @@ if (${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_LIST_DIR})
 endif()
 
 add_library(smplwav STATIC ../smplwav.h ../smplwav_convert.h ../smplwav_mount.h ../smplwav_serialise.h smplwav.c smplwav_convert.c smplwav_internal.h smplwav_mount.c smplwav_serialise.c)
+
+if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+  set_property(TARGET smplwav APPEND_STRING PROPERTY COMPILE_FLAGS " /W3")
+else()
+  set_property(TARGET smplwav APPEND_STRING PROPERTY COMPILE_FLAGS " -Wall")
+endif()
+
 target_include_directories(smplwav PRIVATE "../..")
 target_link_libraries(smplwav cop)
+
