@@ -22,38 +22,36 @@
 
 #include <string.h>
 
-#define SMPLWAV_RIFF_IDSTR(s_) SMPLWAV_RIFF_ID(s_[0], s_[1], s_[2], s_[3])
-
 #ifndef NDEBUG
-#define MAKE_ITEM(fcc_) {SMPLWAV_INFO_ ## fcc_, #fcc_, SMPLWAV_RIFF_IDSTR(#fcc_)}
+#define MAKE_ITEM(fcc_, c1_, c2_, c3_, c4_) {SMPLWAV_INFO_ ## fcc_, SMPLWAV_RIFF_ID(c1_, c2_, c3_, c4_), {c1_, c2_, c3_, c4_, '\0'}}
 #else
-#define MAKE_ITEM(fcc_) {#fcc_, SMPLWAV_RIFF_IDSTR(#fcc_)}
+#define MAKE_ITEM(fcc_, c1_, c2_, c3_, c4_) {                       SMPLWAV_RIFF_ID(c1_, c2_, c3_, c4_), {c1_, c2_, c3_, c4_, '\0'}}
 #endif
 
 const struct smplwav_info_item SMPLWAV_INFO_ITEMS[SMPLWAV_NB_INFO_TAGS] =
-{	MAKE_ITEM(IARL)
-,	MAKE_ITEM(IART)
-,	MAKE_ITEM(ICMS)
-,	MAKE_ITEM(ICMT)
-,	MAKE_ITEM(ICOP)
-,	MAKE_ITEM(ICRD)
-,	MAKE_ITEM(ICRP)
-,	MAKE_ITEM(IDIM)
-,	MAKE_ITEM(IDPI)
-,	MAKE_ITEM(IENG)
-,	MAKE_ITEM(IGNR)
-,	MAKE_ITEM(IKEY)
-,	MAKE_ITEM(ILGT)
-,	MAKE_ITEM(IMED)
-,	MAKE_ITEM(INAM)
-,	MAKE_ITEM(IPLT)
-,	MAKE_ITEM(IPRD)
-,	MAKE_ITEM(ISBJ)
-,	MAKE_ITEM(ISFT)
-,	MAKE_ITEM(ISHP)
-,	MAKE_ITEM(ISRC)
-,	MAKE_ITEM(ISRF)
-,	MAKE_ITEM(ITCH)
+{	MAKE_ITEM(IARL, 'I', 'A', 'R', 'L')
+,	MAKE_ITEM(IART, 'I', 'A', 'R', 'T')
+,	MAKE_ITEM(ICMS, 'I', 'C', 'M', 'S')
+,	MAKE_ITEM(ICMT, 'I', 'C', 'M', 'T')
+,	MAKE_ITEM(ICOP, 'I', 'C', 'O', 'P')
+,	MAKE_ITEM(ICRD, 'I', 'C', 'R', 'D')
+,	MAKE_ITEM(ICRP, 'I', 'C', 'R', 'P')
+,	MAKE_ITEM(IDIM, 'I', 'D', 'I', 'M')
+,	MAKE_ITEM(IDPI, 'I', 'D', 'P', 'I')
+,	MAKE_ITEM(IENG, 'I', 'E', 'N', 'G')
+,	MAKE_ITEM(IGNR, 'I', 'G', 'N', 'R')
+,	MAKE_ITEM(IKEY, 'I', 'K', 'E', 'Y')
+,	MAKE_ITEM(ILGT, 'I', 'L', 'G', 'T')
+,	MAKE_ITEM(IMED, 'I', 'M', 'E', 'D')
+,	MAKE_ITEM(INAM, 'I', 'N', 'A', 'M')
+,	MAKE_ITEM(IPLT, 'I', 'P', 'L', 'T')
+,	MAKE_ITEM(IPRD, 'I', 'P', 'R', 'D')
+,	MAKE_ITEM(ISBJ, 'I', 'S', 'B', 'J')
+,	MAKE_ITEM(ISFT, 'I', 'S', 'F', 'T')
+,	MAKE_ITEM(ISHP, 'I', 'S', 'H', 'P')
+,	MAKE_ITEM(ISRC, 'I', 'S', 'R', 'C')
+,	MAKE_ITEM(ISRF, 'I', 'S', 'R', 'F')
+,	MAKE_ITEM(ITCH, 'I', 'T', 'C', 'H')
 };
 
 const char *smplwav_info_index_to_string(unsigned index)
@@ -70,7 +68,7 @@ int smplwav_info_string_to_index(const char *fourcc)
 	unsigned i;
 	uint_fast32_t id;
 	assert(strlen(fourcc) == 4);
-	id = SMPLWAV_RIFF_IDSTR(fourcc);
+	id = SMPLWAV_RIFF_ID(fourcc[0], fourcc[1], fourcc[2], fourcc[3]);
 	for (i = 0; i < SMPLWAV_NB_INFO_TAGS; i++) {
 #ifndef NDEBUG
 		assert(SMPLWAV_INFO_ITEMS[i].index == i);

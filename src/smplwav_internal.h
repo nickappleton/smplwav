@@ -27,8 +27,8 @@ struct smplwav_info_item {
 #ifndef NDEBUG
 	int            index;
 #endif
-	const char    *fourccstr;
 	uint_fast32_t  fourccid;
+	char           fourccstr[5];
 };
 
 extern const struct smplwav_info_item SMPLWAV_INFO_ITEMS[SMPLWAV_NB_INFO_TAGS];
