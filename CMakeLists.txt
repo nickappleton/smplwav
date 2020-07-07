@@ -1,9 +1,55 @@
 cmake_minimum_required(VERSION 3.0 FATAL_ERROR)
 
+if (SUPERBUILD)
+  include(ExternalProject)
+
+  if (IS_ABSOLUTE CMAKE_INSTALL_PREFIX)
+    set(ABSOLUTE_INSTALL_PREFIX_PATH "${CMAKE_INSTALL_PREFIX}")
+  else()
+    set(ABSOLUTE_INSTALL_PREFIX_PATH "${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_PREFIX}")
+  endif()
+
+  if (NOT CMAKE_CONFIGURATION_TYPES)
+    set(SMPLWAV_BUILD_CONFIG "-DCMAKE_BUILD_TYPE=$<CONFIG>")
+  else()
+    # TODO Verify that this is not necessary
+    #set(SMPLWAV_BUILD_CONFIG "--config $<CONFIG>")
+  endif()
+
+  if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/../cop" AND IS_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/../cop")
+    ExternalProject_Add(
+      cop
+      UPDATE_COMMAND ""
+      PATCH_COMMAND ""
+      SOURCE_DIR "${CMAKE_CURRENT_LIST_DIR}/../cop"
+      CMAKE_ARGS "-DCMAKE_INSTALL_PREFIX:PATH=${ABSOLUTE_INSTALL_PREFIX_PATH}"
+      TEST_BEFORE_INSTALL 1
+      TEST_COMMAND "ctest"
+      BUILD_ALWAYS 1
+      TEST_COMMAND ""
+    )
+  else()
+    message(FATAL_ERROR "no cop")
+  endif()
+
+  ExternalProject_Add(
+    smplwav
+    DEPENDS cop
+    UPDATE_COMMAND ""
+    PATCH_COMMAND ""
+    SOURCE_DIR "${CMAKE_CURRENT_LIST_DIR}"
+    CMAKE_ARGS "-DCMAKE_INSTALL_PREFIX:PATH=${ABSOLUTE_INSTALL_PREFIX_PATH};${SMPLWAV_BUILD_CONFIG}"
+    BUILD_ALWAYS 1
+    TEST_COMMAND ""
+  )
+
+  return()
+endif()
+
 if (${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_LIST_DIR})
   if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-    message(STATUS "Setting CMAKE_BUILD_TYPE type to 'Debug' as none was specified.")
-    set(CMAKE_BUILD_TYPE Debug CACHE STRING "Choose the type of build." FORCE)
+    message(STATUS "Setting CMAKE_BUILD_TYPE type to 'Release' as none was specified.")
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release")
   endif()
 endif()
@@ -24,7 +70,9 @@ endif()
 
 target_include_directories(smplwav PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/..>")
 
-find_package(cop CONFIG REQUIRED)
+if(NOT TARGET cop)
+  find_package(cop CONFIG REQUIRED)
+endif()
 target_link_libraries(smplwav cop)
 
 add_subdirectory(app_sampleauth)
