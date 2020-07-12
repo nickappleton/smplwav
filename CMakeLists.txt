@@ -1,13 +1,19 @@
 cmake_minimum_required(VERSION 3.0 FATAL_ERROR)
 
+if (${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_LIST_DIR})
+  if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    message(STATUS "Setting CMAKE_BUILD_TYPE type to 'Release' as none was specified.")
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release")
+  endif()
+endif()
+
+project(smplwav VERSION 0.1.0 LANGUAGES C)
+
 if (SUPERBUILD)
   include(ExternalProject)
 
-  if (IS_ABSOLUTE CMAKE_INSTALL_PREFIX)
-    set(ABSOLUTE_INSTALL_PREFIX_PATH "${CMAKE_INSTALL_PREFIX}")
-  else()
-    set(ABSOLUTE_INSTALL_PREFIX_PATH "${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_PREFIX}")
-  endif()
+  get_filename_component(ABSOLUTE_INSTALL_PREFIX_PATH ${CMAKE_INSTALL_PREFIX} ABSOLUTE)
 
   if (NOT CMAKE_CONFIGURATION_TYPES)
     set(SMPLWAV_BUILD_CONFIG "-DCMAKE_BUILD_TYPE=$<CONFIG>")
@@ -45,16 +51,6 @@ if (SUPERBUILD)
 
   return()
 endif()
-
-if (${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_LIST_DIR})
-  if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-    message(STATUS "Setting CMAKE_BUILD_TYPE type to 'Release' as none was specified.")
-    set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
-    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release")
-  endif()
-endif()
-
-project(smplwav VERSION 0.1.0 LANGUAGES C)
 
 set(SMPLWAV_PUBLIC_INCLUDES smplwav.h smplwav_convert.h smplwav_mount.h smplwav_serialise.h)
 

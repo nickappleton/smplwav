@@ -203,47 +203,29 @@ static void dump_metadata(const struct smplwav *wav)
 	}
 }
 
-static int dump_sample(const struct smplwav *wav, const char *filename, int store_cue_loops)
-{
-	int err = 0;
-	size_t sz;
-	size_t sz2;
+void *serialise_sample(const struct smplwav *wav, size_t *xsz, int store_cue_loops) {
 	unsigned char *data;
-	FILE *f;
+	size_t         sz;
+	int            err;
 
 	/* Find size of entire wave file then allocate memory for it. */
 	if (smplwav_serialise(wav, NULL, &sz, store_cue_loops)) {
 		fprintf(stderr, "can not serialise the updated waveform\n");
-		return -1;
+		return NULL;
 	}
 	if ((data = malloc(sz)) == NULL) {
 		fprintf(stderr, "out of memory\n");
-		return -1;
+		return NULL;
 	}
 
 	/* Serialise the wave file to memory. */
-	err = smplwav_serialise(wav, data, &sz2, store_cue_loops);
+	err = smplwav_serialise(wav, data, xsz, store_cue_loops);
 
 	/* Serialise should always be successful if the size query was successful
-	 * and the returned size should be identical to what was queried. */
-	assert(err == 0);
-	assert(sz2 == sz);
-
-	/* Open the output file and write the entire buffer to it. */
-	if ((f = fopen(filename, "wb")) != NULL) {
-		if (fwrite(data, 1, sz, f) != sz) {
-			fprintf(stderr, "could not write to file %s\n", filename);
-			err = -1;
-		}
-		fclose(f);
-	} else {
-		fprintf(stderr, "could not open %s\n", filename);
-		err = -1;
-	}
-
-	free(data);
-
-	return err;
+	* and the returned size should be identical to what was queried. */
+	assert(err == 0); (void)err;
+	assert(sz == *xsz);
+	return data;
 }
 
 static int is_whitespace(char c)
@@ -614,6 +596,8 @@ int main(int argc, char *argv[])
 	char *stdinbuf = NULL;
 	size_t stdinbufsz = 0;
 	size_t stdinbufpos = 0;
+	unsigned char *out_data = NULL;
+	size_t         out_data_sz;
 
 	if (argc < 2) {
 		print_usage(stdout, argv[0]);
@@ -709,14 +693,27 @@ int main(int argc, char *argv[])
 		smplwav_sort_markers(&wav);
 		if (opts.flags & FLAG_OUTPUT_METADATA)
 			dump_metadata(&wav);
-		if (opts.output_filename != NULL)
-			err = dump_sample(&wav, opts.output_filename, (opts.flags & FLAG_WRITE_CUE_LOOPS) == FLAG_WRITE_CUE_LOOPS);
+		if (opts.output_filename != NULL) {
+			out_data = serialise_sample(&wav, &out_data_sz, (opts.flags & FLAG_WRITE_CUE_LOOPS) == FLAG_WRITE_CUE_LOOPS);
+			if (out_data == NULL)
+				err = -1;
+		}
 	}
 
 	if (stdinbuf != NULL)
 		free(stdinbuf);
 
 	cop_filemap_close(&infile);
+
+	/* Must dump data after closing the filemap - this could be operating in-place. */
+	if (out_data != NULL) {
+		assert(opts.output_filename != NULL);
+		if (err == 0 && cop_file_dump(opts.output_filename, out_data, out_data_sz)) {
+			fprintf(stderr, "could not write to file %s\n", opts.output_filename);
+			err = -1;
+		}
+		free(out_data);
+	}
 
 	return err;
 }
